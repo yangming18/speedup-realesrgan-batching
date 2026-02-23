@@ -4,6 +4,7 @@ AI-Powered Video Editing Suite - 100% Free!
 """
 import gradio as gr
 import sys
+import os
 from pathlib import Path
 import json
 
@@ -154,11 +155,14 @@ class VideoEditorApp:
         img_dir = Path(__file__).parent / "img"
         example_dir = Path(__file__).parent / "example"
         
+        # Check if share mode is enabled via environment variable
+        share_enabled = os.getenv('GRADIO_SHARE', 'false').lower() == 'true'
+        
         # Launch with specific settings
         app.launch(
             server_name="0.0.0.0",
             server_port=7860,
-            share=False,
+            share=share_enabled,
             show_error=True,
             quiet=False,
             theme=self.theme,
