@@ -1598,7 +1598,217 @@ class LipSyncTab:
                 outputs=[output_video, output_info]
             )
             
-            # Examples section
+            # Examples Gallery Section
+            gr.Markdown("---")
+            
+            with gr.Accordion("📊 Compare Models - Example Results", open=False):
+                gr.Markdown("""
+                ### Side-by-Side Lip Sync Comparison
+                Compare the original source with different lip sync models. Videos are synchronized and maintain their original aspect ratio.
+                """)
+                
+                # Origin selector (img or video)
+                example_origin_radio = gr.Radio(
+                    choices=["img", "video"],
+                    value="img",
+                    label="Select Source Type",
+                    info="Choose whether to see image-based or video-based results"
+                )
+                
+                # Model selector (initially for img)
+                example_model_radio = gr.Radio(
+                    choices=["wav2lip", "wav2lipGAN", "sadtalker", "video_retalking"],
+                    value="wav2lip",
+                    label="Select Model to Compare",
+                    info="Choose which lip sync model result to compare with the original"
+                )
+                
+                gr.Markdown("""
+                **ℹ️ Note:** Use the native video player controls below to play/pause the videos. 
+                They will automatically synchronize when you interact with either video.
+                """)
+                
+                # JavaScript for automatic video synchronization
+                gr.HTML("""
+                <script>
+                (function() {
+                    function setupLipSyncVideoSync() {
+                        // Find video elements in lipsync section
+                        const allVideos = document.querySelectorAll('video');
+                        const videos = Array.from(allVideos).filter(v => {
+                            const src = v.src || v.querySelector('source')?.src || '';
+                            return src.includes('example/lipsync/');
+                        });
+                        
+                        if (videos.length < 2) {
+                            console.log('LipSync videos not ready yet, found:', videos.length);
+                            return false;
+                        }
+                        
+                        const [video1, video2] = videos;
+                        
+                        if (video1._lipsyncSyncSetup) {
+                            return true; // Already set up
+                        }
+                        
+                        // Mark as set up
+                        video1._lipsyncSyncSetup = true;
+                        video2._lipsyncSyncSetup = true;
+                        
+                        console.log('Setting up LipSync video synchronization...');
+                        
+                        // Mute both videos
+                        video1.muted = true;
+                        video2.muted = true;
+                        
+                        // Sync play events
+                        video1.addEventListener('play', () => {
+                            if (video2.paused) {
+                                video2.play().catch(e => console.log('Sync play error:', e));
+                            }
+                        });
+                        
+                        video2.addEventListener('play', () => {
+                            if (video1.paused) {
+                                video1.play().catch(e => console.log('Sync play error:', e));
+                            }
+                        });
+                        
+                        // Sync pause events
+                        video1.addEventListener('pause', () => {
+                            if (!video2.paused) {
+                                video2.pause();
+                            }
+                        });
+                        
+                        video2.addEventListener('pause', () => {
+                            if (!video1.paused) {
+                                video1.pause();
+                            }
+                        });
+                        
+                        // Sync seek events
+                        video1.addEventListener('seeked', () => {
+                            if (Math.abs(video1.currentTime - video2.currentTime) > 0.1) {
+                                video2.currentTime = video1.currentTime;
+                            }
+                        });
+                        
+                        video2.addEventListener('seeked', () => {
+                            if (Math.abs(video1.currentTime - video2.currentTime) > 0.1) {
+                                video1.currentTime = video2.currentTime;
+                            }
+                        });
+                        
+                        console.log('✓ LipSync video synchronization active');
+                        return true;
+                    }
+                    
+                    // Try to setup multiple times
+                    let attempts = 0;
+                    const maxAttempts = 30;
+                    const interval = setInterval(() => {
+                        if (setupLipSyncVideoSync() || attempts >= maxAttempts) {
+                            clearInterval(interval);
+                            if (attempts >= maxAttempts) {
+                                console.log('LipSync video sync setup timeout');
+                            }
+                        }
+                        attempts++;
+                    }, 500);
+                })();
+                </script>
+                """)
+                
+                # Videos side by side
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        gr.Markdown("### 🎬 Original Source")
+                        origin_video = gr.Video(
+                            value="example/lipsync/img.jpg",
+                            label="",
+                            autoplay=False,
+                            show_label=False,
+                            height=500
+                        )
+                    
+                    with gr.Column(scale=1):
+                        gr.Markdown("### ✨ Lip Sync Result")
+                        result_video = gr.Video(
+                            value="example/lipsync/results/img_wav2lip.mp4",
+                            label="",
+                            autoplay=False,
+                            show_label=False,
+                            height=500
+                        )
+                
+                # Info text
+                gr.Markdown("""
+                **💡 How to use:**
+                1. Select **Source Type** (img or video) to change the original source
+                2. Select a **Model** to see different lip sync results
+                3. Click the **play button** on either video - both will start automatically
+                4. Use the **seek bar** to jump to any point - both videos will sync
+                5. Videos are muted and maintain their original aspect ratio
+                
+                **Note:** The videos are automatically synchronized. When you play, pause, or seek one video, the other will follow.
+                """)
+                
+                def update_available_models(origin):
+                    """Update available models based on origin"""
+                    # Check which files exist for this origin
+                    available_models = []
+                    models_to_check = ["wav2lip", "wav2lipGAN", "sadtalker", "video_retalking"]
+                    
+                    for model in models_to_check:
+                        result_path = Path(f"example/lipsync/results/{origin}_{model}.mp4")
+                        if result_path.exists():
+                            available_models.append(model)
+                    
+                    # Default to first available model
+                    default_value = available_models[0] if available_models else "wav2lip"
+                    
+                    return gr.Radio(choices=available_models, value=default_value)
+                
+                def update_lipsync_example_videos(origin, model):
+                    """Update example videos based on selected origin and model"""
+                    # Original source
+                    if origin == "img":
+                        origin_path = "example/lipsync/img.jpg"
+                    else:
+                        origin_path = "example/lipsync/video.mp4"
+                    
+                    # Result video path
+                    result_path = f"example/lipsync/results/{origin}_{model}.mp4"
+                    
+                    # Check if result file exists
+                    if not Path(result_path).exists():
+                        # Return origin and a placeholder message
+                        return origin_path, None
+                    
+                    return origin_path, result_path
+                
+                # Update available models when origin changes
+                example_origin_radio.change(
+                    fn=update_available_models,
+                    inputs=[example_origin_radio],
+                    outputs=[example_model_radio]
+                )
+                
+                # Update videos when origin or model changes
+                example_origin_radio.change(
+                    fn=update_lipsync_example_videos,
+                    inputs=[example_origin_radio, example_model_radio],
+                    outputs=[origin_video, result_video]
+                )
+                
+                example_model_radio.change(
+                    fn=update_lipsync_example_videos,
+                    inputs=[example_origin_radio, example_model_radio],
+                    outputs=[origin_video, result_video]
+                )
+            
+            # Tips section
             gr.Markdown(f"""
             ---
             ## {self._t('lipsync.tips_title')}

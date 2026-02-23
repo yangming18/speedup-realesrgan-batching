@@ -166,6 +166,34 @@ Perfect for choosing the best model for your content!
 - Loop functionality for continuous comparison
 - Native aspect ratio preservation
 
+## AI Lip Sync
+
+The Lip Sync tab provides powerful AI-driven lip synchronization using multiple state-of-the-art models.
+
+### Lip Sync Examples Gallery
+
+The tab includes an interactive gallery to compare different AI lip-sync models:
+
+![Lip Sync Examples](img/gradio/lipsync.png)
+
+**Features:**
+- **Source Selection**: Switch between image and video sources
+- **Model Comparison**: Compare results from Wav2Lip, Wav2Lip GAN, SadTalker, and Video-Retalking
+- **Side-by-Side View**: See original source next to processed result
+- **Synchronized Playback**: Videos automatically sync when playing/pausing/seeking
+- **Easy Navigation**: Select different models to instantly see quality differences
+
+### Supported Lip Sync Models
+
+| Model | Description | Best For | Processing Speed |
+|-------|-------------|----------|------------------|
+| **Wav2Lip** | Base model - Fast and reliable | Quick previews and testing | ⚡⚡⚡⚡⚡ |
+| **Wav2Lip GAN** | Enhanced version with better quality | Balanced quality/speed production | ⚡⚡⚡⚡ |
+| **SadTalker** | Full facial animation with expressions | Static portrait animation | ⚡⚡ |
+| **Video-Retalking** | Maximum quality with face enhancement | Professional productions | ⚡ |
+
+> 💡 **Tip**: All lip sync models are downloaded automatically on first use. Try the examples gallery to compare quality before processing your own content!
+
 ## 📚 Documentation
 
 Comprehensive guides and documentation available in the [`docs/`](docs/) folder:
