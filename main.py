@@ -1,19 +1,27 @@
 """
-Video Editor - Main Application
+The-Gargantuas-Video-Editor - Main Application
 AI-Powered Video Editing Suite - 100% Free!
 """
 import gradio as gr
 import sys
 from pathlib import Path
+import json
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
+
+# Apply OpenCV patch for compatibility
+from utils.opencv_patch import apply_opencv_patch
+apply_opencv_patch()
 
 # Import modules
 from config.config import ensure_directories
 from utils.temp_manager import TempManager
 from utils.device_manager import DeviceManager
+from utils.i18n import get_i18n
 from tabs.upscaler_tab import UpscalerTab
+from tabs.lipsync_tab import LipSyncTab
+from tabs.settings_tab import SettingsTab
 from tabs.support_tab import SupportTab
 from theme.custom_theme import CustomTheme, create_custom_css
 
@@ -22,18 +30,44 @@ class VideoEditorApp:
     """Main application class"""
     
     def __init__(self):
+        # Load saved language preference
+        self.load_language_preference()
+        
+        # Initialize i18n
+        self.i18n = get_i18n(self.preferred_lang)
+        
         # Initialize managers
         self.temp_manager = TempManager()
         self.device_manager = DeviceManager()
         
         # Initialize tabs
         self.upscaler_tab = UpscalerTab(self.temp_manager, self.device_manager)
+        self.lipsync_tab = LipSyncTab(self.temp_manager, self.device_manager, self.i18n)
+        self.settings_tab = SettingsTab(self.i18n, on_language_change=self.on_language_change)
         self.support_tab = SupportTab()
+    
+    def load_language_preference(self):
+        """Carica la lingua preferita dalle impostazioni salvate"""
+        config_file = Path(__file__).parent / "config" / "user_settings.json"
+        self.preferred_lang = 'en'  # Default
+        
+        if config_file.exists():
+            try:
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    settings = json.load(f)
+                    self.preferred_lang = settings.get('language', 'en')
+            except Exception:
+                pass
+    
+    def on_language_change(self, lang_code: str):
+        """Callback quando cambia la lingua"""
+        print(f"📝 Language changed to: {self.i18n.get_current_language_name()}")
+        print("   Please refresh the page to see all changes.")
         
     def initialize(self):
         """Initialize application"""
         print("=" * 60)
-        print("🎬 VIDEO EDITOR - AI-Powered Editing Suite")
+        print(f"🎬 {self.i18n.t('app.title')}")
         print("=" * 60)
         
         # Setup directories
@@ -46,10 +80,11 @@ class VideoEditorApp:
         print(f"   Platform: {device_info['platform']}")
         print(f"   Current Device: {device_info['current']}")
         print(f"   Available Devices: {', '.join(device_info['available'])}")
+        print(f"   Language: {self.i18n.get_current_language_name()}")
         
         print("\n" + "=" * 60)
-        print("✓ Application initialized successfully")
-        print("✓ 100% Free - No authentication required!")
+        print(f"✓ {self.i18n.t('app.init_message')}")
+        print(f"✓ {self.i18n.t('app.free_message')}")
         print("=" * 60 + "\n")
     
     def create_interface(self):
@@ -57,16 +92,22 @@ class VideoEditorApp:
         self.theme = CustomTheme()
         self.custom_css = create_custom_css()
         
-        with gr.Blocks(title="Video Editor - Free AI Upscaler") as app:
+        app_title = f"{self.i18n.t('app.title')} - {self.i18n.t('app.subtitle')}"
+        
+        with gr.Blocks(title=app_title) as app:
             # Header
-            gr.Markdown("""
-            # 🎬 Video Editor - AI-Powered Suite
-            ### Professional video and image enhancement powered by AI
-            ### 💯 100% FREE - No Login Required! 🎉
+            gr.Markdown(f"""
+            # 🎬 {self.i18n.t('app.title')}
+            ### {self.i18n.t('app.subtitle')}
+            ### 💯 {self.i18n.t('app.free_message')} 🎉
             """)
             
             # Main Tabs
             self.upscaler_tab.create_tab()
+            self.lipsync_tab.create_tab()
+            self.settings_tab.create_tab()
+            
+            # Support tab at the end
             self.support_tab.create_tab()
             
             # Placeholder for future tabs

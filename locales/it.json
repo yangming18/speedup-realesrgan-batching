@@ -1,0 +1,129 @@
+{
+  "app": {
+    "title": "The-Gargantuas-Video-Editor",
+    "subtitle": "Suite AI per Editing Video",
+    "init_message": "Applicazione inizializzata con successo",
+    "free_message": "100% Gratuito - Nessuna autenticazione richiesta!"
+  },
+  "tabs": {
+    "upscaler": "🎨 Upscaler",
+    "lipsync": "👄 Lip Sync",
+    "settings": "⚙️ Impostazioni",
+    "support": "❤️ Supporto"
+  },
+  "upscaler": {
+    "title": "AI Upscaling",
+    "description": "Migliora la qualità di immagini e video usando modelli AI",
+    "input_type": "Tipo Input",
+    "image": "Immagine",
+    "video": "Video",
+    "upload_image": "📁 Carica Immagine",
+    "upload_video": "📹 Carica Video",
+    "model": "🤖 Modello AI",
+    "model_info": "Informazioni Modello",
+    "device": "💻 Dispositivo",
+    "device_info": "Seleziona dispositivo di elaborazione",
+    "upscale_button": "🚀 Migliora Qualità",
+    "output_image": "📸 Immagine Output",
+    "output_video": "📹 Video Output",
+    "info": "ℹ️ Info",
+    "processing": "Elaborazione in corso...",
+    "error_no_input": "⚠️ Per favore carica un'immagine o un video",
+    "success": "✅ Upscaling completato con successo!"
+  },
+  "lipsync": {
+    "title": "AI Lip Sync",
+    "description": "Sincronizza le labbra di immagini/video con audio usando modelli AI avanzati",
+    "model": "🤖 Modello AI",
+    "model_info": "Informazioni Modello",
+    "select_model": "Seleziona il modello per la sincronizzazione",
+    "input_file": "📁 Immagine o Video Input",
+    "audio_file": "🎵 File Audio",
+    "advanced_settings": "⚙️ Impostazioni Avanzate",
+    "device": "💻 Dispositivo",
+    "device_info": "Seleziona dove eseguire il processing",
+    "resize_factor": "📐 Fattore Ridimensionamento",
+    "resize_info": "Fattore di ridimensionamento (1 = originale, utile per video grandi)",
+    "nosmooth": "🎬 No Smooth",
+    "nosmooth_info": "Disabilita lo smoothing temporale (può migliorare la qualità in alcuni casi)",
+    "process_button": "🚀 Genera Lip Sync",
+    "output_video": "📹 Video Output",
+    "info": "ℹ️ Info",
+    "tips_title": "💡 Suggerimenti",
+    "tips_content": "- **Wav2Lip**: Ideale per preview rapide e test. Veloce ma qualità base.\n- **Wav2Lip GAN**: Miglior compromesso qualità/velocità. Consigliato per la maggior parte degli usi.\n- **SadTalker**: Per animare ritratti statici con espressioni naturali. Mantiene immagine completa. Solo immagini.\n- **Video-Retalking**: Massima qualità ma richiede tempo. Per produzioni professionali.\n\n⚠️ I modelli vengono scaricati automaticamente al primo utilizzo (può richiedere alcuni minuti).",
+    "error_no_input": "❌ Per favore carica un'immagine o video",
+    "error_no_audio": "❌ Per favore carica un file audio",
+    "init_model": "Inizializzazione {model}...",
+    "download_model": "Download modello...",
+    "processing": "🎭 Generazione lip-sync...",
+    "adding_audio": "🎵 Aggiunta audio finale...",
+    "completed": "✅ Completato!",
+    "success": "✅ Lip sync completato con successo usando {model}!",
+    "error": "❌ Errore durante il processing",
+    "model_quality": "Qualità:",
+    "model_speed": "Velocità:",
+    "model_pros": "✨ Vantaggi:",
+    "model_cons": "⚠️ Svantaggi:",
+    "model_best_for": "🎯 Ideale per:",
+    "models": {
+      "wav2lip": {
+        "description": "Modello base - Veloce e affidabile",
+        "pros": ["Veloce", "Stabile", "Basso uso di memoria"],
+        "cons": ["Qualità inferiore", "Possibili artefatti"],
+        "best_for": "Preview rapide e video a bassa risoluzione"
+      },
+      "wav2lip_gan": {
+        "description": "Versione migliorata - Qualità superiore",
+        "pros": ["Qualità migliore", "Meno artefatti", "Relativamente veloce"],
+        "cons": ["Uso memoria maggiore", "Richiede GPU per performance ottimali"],
+        "best_for": "Produzione con buon compromesso qualità/velocità"
+      },
+      "sadtalker": {
+        "description": "Animazione completa - Include espressioni e movimenti (mantiene immagine intera)",
+        "pros": ["Anima espressioni facciali", "Movimenti naturali", "Risultati realistici", "Mantiene scena completa"],
+        "cons": ["Molto lento", "Alto uso di memoria", "Solo immagini statiche"],
+        "best_for": "Animazione di ritratti statici con massimo realismo, preserva tutta la scena"
+      },
+      "video_retalking": {
+        "description": "Massima qualità - Include miglioramento del viso",
+        "pros": ["Qualità superiore", "Migliora anche il viso", "Risultati professionali"],
+        "cons": ["Molto lento", "Richiede GPU potente", "Setup complesso"],
+        "best_for": "Produzione professionale dove la qualità è prioritaria"
+      },
+      "liveportrait": {
+        "description": "Animazione viso + torso superiore - Movimenti naturali del corpo",
+        "pros": ["Anima viso e torso", "Movimenti corpo naturali", "Qualità alta", "Mantiene scena completa"],
+        "cons": ["Richiede GPU", "Uso memoria medio-alto", "Solo immagini statiche"],
+        "best_for": "Animazione di ritratti con movimenti del corpo superiore"
+      }
+    }
+  },
+  "settings": {
+    "title": "Impostazioni",
+    "description": "Configura le preferenze dell'applicazione",
+    "language": "🌐 Lingua",
+    "language_info": "Seleziona la lingua dell'interfaccia",
+    "save": "💾 Salva Impostazioni",
+    "saved": "✅ Impostazioni salvate con successo!",
+    "theme": "🎨 Tema",
+    "theme_info": "Tema dell'interfaccia (prossimamente)"
+  },
+  "support": {
+    "title": "Supporta il Progetto",
+    "description": "Questo progetto è 100% gratuito e open source",
+    "message": "Se trovi questo strumento utile, considera di supportare lo sviluppo!"
+  },
+  "common": {
+    "upload": "Carica",
+    "download": "Scarica",
+    "process": "Elabora",
+    "cancel": "Annulla",
+    "close": "Chiudi",
+    "save": "Salva",
+    "loading": "Caricamento...",
+    "error": "Errore",
+    "success": "Successo",
+    "warning": "Attenzione",
+    "info": "Informazione"
+  }
+}

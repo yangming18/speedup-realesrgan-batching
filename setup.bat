@@ -37,8 +37,13 @@ pip install -r requirements.txt
 
 echo.
 echo ================================================
-echo Setup Complete!
+echo Complete Setup Finished!
 echo ================================================
+echo.
+echo Note: OpenCV compatibility patch
+echo    The application automatically applies an OpenCV patch at startup
+echo    to ensure compatibility between packages. No manual action needed.
+echo    For details, see: docs/OPENCV_PATCH.md
 echo.
 echo Next steps:
 echo 1. Run the application:

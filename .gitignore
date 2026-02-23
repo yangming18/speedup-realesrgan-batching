@@ -41,8 +41,22 @@ Thumbs.db
 temp/
 *.log
 
-# Model weights (downloaded at runtime)
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+*.pytest_cache
+
+# Test data (media files for end-to-end testing)
+test_data/videos/
+test_data/audio/
+test_data/images/
+test_data/outputs/
+
+# AI Models (downloaded automatically at runtime - too large for git)
+models/
 *.pth
+*.safetensors
 weights/
 
 # Output files

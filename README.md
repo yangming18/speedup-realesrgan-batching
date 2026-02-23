@@ -1,15 +1,19 @@
-# Video Editor - AI-Powered Upscaler
+# The-Gargantuas-Video-Editor
 
-A Python-based video editing application with AI upscaling capabilities.
+**AI-Powered Video Editing Suite - 100% Free!**
 
-## Features
+A Python-based video editing application with AI upscaling and lip-sync capabilities.
 
-- **AI Upscaling**: Upscale images and videos using RealESRGAN models
-- **100% Free**: No login, no subscriptions, no locked features
-- **Multi-device Support**: CPU, GPU (CUDA), and MPS (Apple Silicon) acceleration
-- **Cross-platform**: Compatible with macOS, Windows, and Linux
-- **Easy to Use**: Simple interface with powerful features
-- **Open Source**: Free software you can trust
+## ✨ Features
+
+- **🎨 AI Upscaling**: Enhance images and videos using RealESRGAN models
+- **👄 AI Lip Sync**: Synchronize lips with audio using 4 advanced models (Wav2Lip, Wav2Lip GAN, SadTalker, Video-Retalking)
+- **🌐 Multi-language**: Full internationalization support (English, Italian, more coming)
+- **💯 100% Free**: No login, no subscriptions, no locked features
+- **🖥️ Multi-device Support**: CPU, GPU (CUDA), and MPS (Apple Silicon) acceleration
+- **🌍 Cross-platform**: Compatible with macOS, Windows, and Linux
+- **😊 Easy to Use**: Simple interface with powerful features
+- **🔓 Open Source**: Free software you can trust
 
 ## Setup
 
@@ -161,6 +165,27 @@ Perfect for choosing the best model for your content!
 - Synchronized playback controls
 - Loop functionality for continuous comparison
 - Native aspect ratio preservation
+
+## 📚 Documentation
+
+Comprehensive guides and documentation available in the [`docs/`](docs/) folder:
+
+- **[Quick Start Guide](docs/QUICKSTART.md)** - Fast setup and first run
+- **[LipSync Guide](docs/LIPSYNC.md)** - Complete guide for AI lip-sync feature
+- **[I18N Guide](docs/I18N.md)** - Internationalization and translations
+- **[OpenCV Patch](docs/OPENCV_PATCH.md)** - Compatibility fix details
+- **[Project Structure](docs/PROJECT_STRUCTURE.md)** - Codebase organization
+- **[Changelog](docs/CHANGELOG.md)** - Version history and updates
+
+## 📦 AI Models
+
+**All AI models are downloaded automatically on first use** - you don't need to download anything manually!
+
+- RealESRGAN models (~60-100MB each) - Downloaded when using Upscaler
+- LipSync models (150MB - 2GB) - Downloaded when using each model for the first time
+- Models are cached in `models/` folder (not included in git due to size)
+
+**First Run**: Expect longer processing time as models download. Subsequent runs will be much faster!
 
 ## Dependencies & Credits
 

@@ -1,0 +1,123 @@
+{
+  "app": {
+    "title": "The-Gargantuas-Video-Editor",
+    "subtitle": "AI-Powered Video Editing Suite",
+    "init_message": "Application initialized successfully",
+    "free_message": "100% Free - No authentication required!"
+  },
+  "tabs": {
+    "upscaler": "🎨 Upscaler",
+    "lipsync": "👄 Lip Sync",
+    "settings": "⚙️ Settings",
+    "support": "❤️ Support"
+  },
+  "upscaler": {
+    "title": "AI Upscaling",
+    "description": "Enhance image and video quality using AI models",
+    "input_type": "Input Type",
+    "image": "Image",
+    "video": "Video",
+    "upload_image": "📁 Upload Image",
+    "upload_video": "📹 Upload Video",
+    "model": "🤖 AI Model",
+    "model_info": "Model Information",
+    "device": "💻 Device",
+    "device_info": "Select processing device",
+    "upscale_button": "🚀 Upscale",
+    "output_image": "📸 Output Image",
+    "output_video": "📹 Output Video",
+    "info": "ℹ️ Info",
+    "processing": "Processing...",
+    "error_no_input": "⚠️ Please upload an image or video",
+    "success": "✅ Upscaling completed successfully!"
+  },
+  "lipsync": {
+    "title": "AI Lip Sync",
+    "description": "Synchronize lips in images/videos with audio using advanced AI models",
+    "model": "🤖 AI Model",
+    "model_info": "Model Information",
+    "select_model": "Select model for synchronization",
+    "input_file": "📁 Image or Video Input",
+    "audio_file": "🎵 Audio File",
+    "advanced_settings": "⚙️ Advanced Settings",
+    "device": "💻 Device",
+    "device_info": "Select processing device",
+    "resize_factor": "📐 Resize Factor",
+    "resize_info": "Resize factor (1 = original, useful for large videos)",
+    "nosmooth": "🎬 No Smooth",
+    "nosmooth_info": "Disable temporal smoothing (may improve quality in some cases)",
+    "process_button": "🚀 Generate Lip Sync",
+    "output_video": "📹 Output Video",
+    "info": "ℹ️ Info",
+    "tips_title": "💡 Tips",
+    "tips_content": "- **Wav2Lip**: Ideal for quick previews and tests. Fast but basic quality.\n- **Wav2Lip GAN**: Best quality/speed compromise. Recommended for most uses.\n- **SadTalker**: For animating static portraits with natural expressions. Preserves full image. Images only.\n- **Video-Retalking**: Maximum quality but requires time. For professional productions.\n\n⚠️ Models are downloaded automatically on first use (may take a few minutes).",
+    "error_no_input": "❌ Please upload an image or video",
+    "error_no_audio": "❌ Please upload an audio file",
+    "init_model": "Initializing {model}...",
+    "download_model": "Downloading model...",
+    "processing": "🎭 Generating lip-sync...",
+    "adding_audio": "🎵 Adding final audio...",
+    "completed": "✅ Completed!",
+    "success": "✅ Lip sync completed successfully using {model}!",
+    "error": "❌ Error during processing",
+    "model_quality": "Quality:",
+    "model_speed": "Speed:",
+    "model_pros": "✨ Advantages:",
+    "model_cons": "⚠️ Disadvantages:",
+    "model_best_for": "🎯 Ideal for:",
+    "models": {
+      "wav2lip": {
+        "description": "Base model - Fast and reliable",
+        "pros": ["Fast", "Stable", "Low memory usage"],
+        "cons": ["Lower quality", "Possible artifacts"],
+        "best_for": "Quick previews and low-resolution videos"
+      },
+      "wav2lip_gan": {
+        "description": "Improved version - Superior quality",
+        "pros": ["Better quality", "Fewer artifacts", "Relatively fast"],
+        "cons": ["Higher memory usage", "Requires GPU for optimal performance"],
+        "best_for": "Production with good quality/speed compromise"
+      },
+      "sadtalker": {
+        "description": "Complete animation - Includes expressions and movements (preserves full image)",
+        "pros": ["Animates facial expressions", "Natural movements", "Realistic results", "Keeps full scene"],
+        "cons": ["Very slow", "High memory usage", "Static images only"],
+        "best_for": "Static portrait animation with maximum realism, full scene preservation"
+      },
+      "video_retalking": {
+        "description": "Maximum quality - Includes face enhancement",
+        "pros": ["Superior quality", "Also enhances face", "Professional results"],
+        "cons": ["Very slow", "Requires powerful GPU", "Complex setup"],
+        "best_for": "Professional production where quality is priority"
+      }
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Configure application preferences",
+    "language": "🌐 Language",
+    "language_info": "Select interface language",
+    "save": "💾 Save Settings",
+    "saved": "✅ Settings saved successfully!",
+    "theme": "🎨 Theme",
+    "theme_info": "Interface theme (coming soon)"
+  },
+  "support": {
+    "title": "Support the Project",
+    "description": "This project is 100% free and open source",
+    "message": "If you find this tool useful, consider supporting development!"
+  },
+  "common": {
+    "upload": "Upload",
+    "download": "Download",
+    "process": "Process",
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Information"
+  }
+}
