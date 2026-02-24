@@ -154,20 +154,23 @@ class VideoEditorApp:
         # Get absolute paths to directories
         img_dir = Path(__file__).parent / "img"
         example_dir = Path(__file__).parent / "example"
+        temp_dir = Path(__file__).parent / "temp"
         
         # Check if share mode is enabled via environment variable
         share_enabled = os.getenv('GRADIO_SHARE', 'false').lower() == 'true'
         
         # Launch with specific settings
+        # NOTE: server_name="127.0.0.1" instead of "0.0.0.0" to enable webcam
+        # Webcam requires localhost/127.0.0.1 URL (browser security)
         app.launch(
-            server_name="0.0.0.0",
+            server_name="127.0.0.1",
             server_port=7860,
             share=share_enabled,
             show_error=True,
             quiet=False,
             theme=self.theme,
             css=self.custom_css,
-            allowed_paths=[str(img_dir), str(example_dir)]
+            allowed_paths=[str(img_dir), str(example_dir), str(temp_dir)]
         )
 
 

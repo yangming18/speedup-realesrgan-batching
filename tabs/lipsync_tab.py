@@ -14,6 +14,8 @@ import gradio as gr
 from PIL import Image
 from utils.sadtalker_patch import patch_sadtalker_numpy_compatibility, check_if_patch_needed as check_sadtalker_patch
 from utils.liveportrait_patch import patch_liveportrait_numpy_compatibility, check_if_patch_needed as check_liveportrait_patch
+from utils.audio_countdown import add_countdown_to_audio, sync_audio_video_with_countdown
+from utils.liveportrait_downloader import download_liveportrait_checkpoints, check_liveportrait_ready
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +202,18 @@ LIPSYNC_MODELS = {
         'best_for': 'Produzione professionale dove la qualità è prioritaria',
         'repo': 'https://github.com/OpenTalker/video-retalking.git',
         'checkpoint': None,
+    },
+    'thegargantuas_lipsync': {
+        'name': 'TheGargantuas LipSync',
+        'description': '🔥 Pipeline completa - Animazione corpo + lip sync perfetto',
+        'quality': 5,  # 5 stelle (massima qualità)
+        'speed': 2,    # 2 fulmini (medio-lento, doppia pipeline)
+        'pros': ['Anima corpo + faccia', 'Lip sync perfetto (Wav2Lip GAN)', 'Movimenti naturali', 'Qualità professionale', 'Controllo completo con driving video'],
+        'cons': ['Richiede driving video o webcam', 'Più lento (doppia pipeline)', 'Solo immagini statiche come source'],
+        'best_for': 'Produzioni professionali con movimenti corpo naturali + lip sync perfetto. Ideale per talking portraits con gesti.',
+        'repo': None,  # Pipeline combinata (LivePortrait + Wav2Lip GAN)
+        'checkpoint': None,
+        'requires_driving_video': True,  # Flag speciale
     },
 }
 
@@ -1430,6 +1444,276 @@ class LipSyncTab:
         
         return html
     
+    def _process_audio_video_pipeline(
+        self,
+        input_file,
+        audio_file,
+        driving_video,
+        device,
+        resize_factor,
+        nosmooth,
+        progress
+    ):
+        """
+        Pipeline: LivePortrait (IMG + DRIVING_VIDEO) → Wav2Lip GAN (VIDEO + AUDIO)
+        
+        Returns:
+            tuple: (output_video_path, info_message)
+        """
+        try:
+            models_dir = Path(__file__).parent.parent / "models" / "lipsync"
+            liveportrait_dir = models_dir / "liveportrait"
+            pretrained_weights_dir = liveportrait_dir / "pretrained_weights"
+            
+            # Check and download LivePortrait checkpoints if needed
+            if not check_liveportrait_ready(liveportrait_dir):
+                progress(0.02, desc="📥 Downloading LivePortrait checkpoints (first time only, ~500MB)...")
+                logger.info("LivePortrait checkpoints missing, downloading...")
+                
+                success = download_liveportrait_checkpoints(pretrained_weights_dir)
+                if not success:
+                    return None, ("❌ Failed to download LivePortrait checkpoints.\n\n"
+                                "Try manually:\n"
+                                "pip install -U 'huggingface_hub[cli]'\n"
+                                "huggingface-cli download KlingTeam/LivePortrait --local-dir models/lipsync/liveportrait/pretrained_weights")
+                
+                progress(0.05, desc="✅ Checkpoints downloaded!")
+            
+            # Step 1: LivePortrait motion transfer
+            progress(0.05, desc="🎬 Step 1/2: LivePortrait motion transfer...")
+            
+            # LivePortrait output path
+            liveportrait_output = self.temp_manager.get_temp_file_path("liveportrait_motion.mp4")
+            
+            def liveportrait_progress(percent, msg):
+                # Map to 10-45% of total progress
+                progress((10 + percent * 0.35) / 100, desc=f"🎬 LivePortrait: {msg}")
+            
+            # Call LivePortrait directly (no processor needed)
+            logger.info(f"Running LivePortrait: {input_file} + {driving_video} → {liveportrait_output}")
+            success = self._run_liveportrait_inference(
+                source_image=input_file,
+                driving_video=driving_video,
+                output_path=str(liveportrait_output),
+                device=device,
+                progress_callback=liveportrait_progress
+            )
+            
+            if not success:
+                return None, "❌ Errore LivePortrait motion transfer"
+            
+            if not Path(liveportrait_output).exists():
+                return None, "❌ LivePortrait non ha generato il video intermedio"
+            
+            logger.info(f"✅ LivePortrait completato: {liveportrait_output}")
+            
+            # Step 2: Wav2Lip GAN lip sync
+            progress(0.5, desc="💋 Step 2/2: Wav2Lip GAN lip sync...")
+            
+            wav2lip_processor = LipSyncProcessor(
+                model_name='wav2lip_gan',
+                device=device,
+                models_dir=models_dir
+            )
+            
+            # Download Wav2Lip GAN if needed
+            if not wav2lip_processor.is_model_downloaded():
+                progress(0.55, desc="📥 Download Wav2Lip GAN...")
+                
+                download_log = []
+                def log_download(msg):
+                    download_log.append(msg)
+                    progress(0.55, desc=msg)
+                
+                success = wav2lip_processor.download_model(progress_callback=log_download)
+                if not success:
+                    return None, "❌ Errore download Wav2Lip GAN:\n" + "\n".join(download_log[-10:])
+            
+            # Process with Wav2Lip GAN
+            final_output = self.temp_manager.get_temp_file_path("lipsync_final.mp4")
+            
+            def wav2lip_progress(percent, msg):
+                # Map to 55-95% of total progress
+                progress((55 + percent * 0.4) / 100, desc=f"💋 Wav2Lip GAN: {msg}")
+            
+            success = wav2lip_processor.process(
+                image_or_video_path=str(liveportrait_output),
+                audio_path=audio_file,
+                output_path=str(final_output),
+                progress_callback=wav2lip_progress,
+                resize_factor=resize_factor,
+                nosmooth=nosmooth
+            )
+            
+            if success and Path(final_output).exists():
+                progress(1.0, desc="✅ Pipeline completata!")
+                return str(final_output), (
+                    "✅ Pipeline completata con successo!\n\n"
+                    "🎬 Step 1: LivePortrait → motion transfer completato\n"
+                    "💋 Step 2: Wav2Lip GAN → lip sync completato\n\n"
+                    "💡 Suggerimento: Per migliorare ulteriormente la qualità, "
+                    "usa il tab Upscaler con RealESRGAN x2 o x4"
+                )
+            else:
+                error_details = ""
+                if wav2lip_processor.last_error:
+                    error_details = f"\n\nDettagli:\n{wav2lip_processor.last_error}"
+                return None, f"❌ Errore Wav2Lip GAN{error_details}"
+            
+        except Exception as e:
+            logger.error(f"Errore nella pipeline audio+video: {e}", exc_info=True)
+            return None, f"❌ Errore pipeline: {str(e)}"
+    
+    def _run_liveportrait_inference(
+        self,
+        source_image,
+        driving_video,
+        output_path,
+        device,
+        progress_callback
+    ):
+        """
+        Esegue LivePortrait inference con argomenti corretti
+        LivePortrait usa --source (immagine) e --driving (video) come da ArgumentConfig
+        
+        NOTE: LivePortrait uses Conv3D which is NOT supported on MPS (Apple Silicon GPU)
+        We force CPU execution for MPS devices
+        """
+        try:
+            models_dir = Path(__file__).parent.parent / "models" / "lipsync"
+            liveportrait_dir = models_dir / "liveportrait"
+            inference_script = liveportrait_dir / "inference.py"
+            
+            if not inference_script.exists():
+                logger.error(f"inference.py non trovato: {inference_script}")
+                return False
+            
+            # Warn if using MPS: LivePortrait will be forced to CPU (Conv3D not supported)
+            if device == "mps":
+                logger.warning("⚠️ LivePortrait using CPU (Conv3D not supported on MPS)")
+                if progress_callback:
+                    progress_callback(5, "⚠️ Usando CPU per LivePortrait (MPS non supporta Conv3D)")
+            
+            # Converti path in assoluti
+            source_abs = str(Path(source_image).resolve())
+            driving_abs = str(Path(driving_video).resolve())
+            output_abs = str(Path(output_path).resolve())
+            
+            # Output directory per LivePortrait
+            output_dir = Path(output_path).parent
+            
+            cmd = [
+                sys.executable,
+                str(inference_script),
+                '--source', source_abs,
+                '--driving', driving_abs,
+                '--output_dir', str(output_dir)
+            ]
+            
+            if progress_callback:
+                progress_callback(10, "Avvio LivePortrait...")
+            
+            logger.info(f"Esecuzione LivePortrait: {' '.join(cmd)}")
+            logger.info(f"CWD: {liveportrait_dir}")
+            
+            # Prepare environment - FORCE CPU for MPS
+            env = os.environ.copy()
+            if device == "mps":
+                # Disable MPS to force CPU (Conv3D not supported on MPS)
+                env['PYTORCH_ENABLE_MPS_FALLBACK'] = '0'
+                env['CUDA_VISIBLE_DEVICES'] = ''
+                logger.info("🖥️ Forcing CPU execution (MPS disabled for Conv3D operations)")
+            
+            # Esegui subprocess
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=str(liveportrait_dir),
+                env=env,
+                bufsize=1,
+                universal_newlines=True
+            )
+            
+            # Leggi output
+            stderr_lines = []
+            for line in process.stderr:
+                stderr_lines.append(line)
+                line_stripped = line.strip()
+                
+                if line_stripped:
+                    logger.info(f"LivePortrait: {line_stripped}")
+                    
+                    # Update progress based on output
+                    if 'detect' in line_stripped.lower() or 'face' in line_stripped.lower():
+                        if progress_callback:
+                            progress_callback(30, "🔍 Rilevamento viso...")
+                    elif 'extract' in line_stripped.lower():
+                        if progress_callback:
+                            progress_callback(50, "📊 Estrazione features...")
+                    elif 'generat' in line_stripped.lower() or 'render' in line_stripped.lower():
+                        if progress_callback:
+                            progress_callback(70, "🎬 Rendering video...")
+                    elif 'writ' in line_stripped.lower() or 'sav' in line_stripped.lower():
+                        if progress_callback:
+                            progress_callback(90, "💾 Salvataggio...")
+            
+            returncode = process.wait()
+            
+            if returncode == 0:
+                # LivePortrait salva con nome diverso, cerchiamo il file
+                if Path(output_path).exists():
+                    if progress_callback:
+                        progress_callback(100, "✅ LivePortrait completato!")
+                    return True
+                else:
+                    # Cerca file più recente nella output_dir
+                    mp4_files = list(output_dir.glob('**/*.mp4'))
+                    if mp4_files:
+                        latest_file = max(mp4_files, key=lambda p: p.stat().st_mtime)
+                        shutil.move(str(latest_file), output_path)
+                        if progress_callback:
+                            progress_callback(100, "✅ LivePortrait completato!")
+                        return True
+                    else:
+                        logger.error(f"LivePortrait completato ma nessun file trovato in {output_dir}")
+                        return False
+            else:
+                logger.error(f"LivePortrait fallito con exit code {returncode}")
+                logger.error(f"STDERR: {''.join(stderr_lines[-20:])}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Eccezione in _run_liveportrait_inference: {e}", exc_info=True)
+            return False
+    
+    def prepare_audio_with_countdown(self, audio_file, countdown_seconds=5):
+        """
+        Add countdown beeps to audio for webcam sync
+        Returns: (countdown_audio_path, countdown_audio_path_for_preview)
+        """
+        if audio_file is None:
+            return None, None
+        
+        try:
+            # Generate audio with countdown
+            output_path = self.temp_manager.get_temp_file_path("audio_with_countdown.wav")
+            countdown_audio, duration = add_countdown_to_audio(
+                audio_file, 
+                output_path, 
+                countdown_seconds=countdown_seconds
+            )
+            
+            logger.info(f"✅ Audio with {countdown_seconds}s countdown generated: {countdown_audio}")
+            
+            # Return same path for both outputs (hidden textbox and audio player)
+            return countdown_audio, countdown_audio
+            
+        except Exception as e:
+            logger.error(f"Error generating countdown audio: {e}", exc_info=True)
+            return None, None
+    
     def process_lipsync(
         self,
         input_file,
@@ -1438,6 +1722,10 @@ class LipSyncTab:
         device,
         resize_factor,
         nosmooth,
+        use_webcam=False,
+        driving_video_file=None,
+        webcam_recording=None,
+        audio_with_countdown_path=None,
         progress=gr.Progress()
     ):
         """Process lip sync with selected model"""
@@ -1447,10 +1735,48 @@ class LipSyncTab:
         if audio_file is None:
             return None, "❌ Per favore carica un file audio"
         
+        # Check driving video for TheGargantuas LipSync model
+        if model_name == "thegargantuas_lipsync":
+            driving_video = webcam_recording if use_webcam else driving_video_file
+            if driving_video is None:
+                return None, "❌ TheGargantuas LipSync richiede un driving video. Per favore carica un video o registra dalla webcam."
+            
+            # If using webcam with countdown, sync and trim files
+            if use_webcam and audio_with_countdown_path:
+                progress(0, desc="🎬 Sincronizzazione audio e video...")
+                try:
+                    # Trim countdown from both audio and video
+                    synced_video, synced_audio = sync_audio_video_with_countdown(
+                        audio_with_countdown=audio_with_countdown_path,
+                        webcam_video=driving_video,
+                        output_dir=self.temp_manager.temp_dir,
+                        countdown_duration=5
+                    )
+                    # Use synced files for processing
+                    driving_video = synced_video
+                    audio_file = synced_audio
+                    progress(5, desc="✅ Sincronizzazione completata!")
+                except Exception as e:
+                    logger.error(f"Errore nella sincronizzazione: {e}", exc_info=True)
+                    return None, f"❌ Errore sincronizzazione: {str(e)}"
+        
         try:
             # Select device
             self.device_manager.set_device(device)
             
+            # Check if TheGargantuas LipSync (LivePortrait + Wav2Lip pipeline)
+            if model_name == "thegargantuas_lipsync":
+                return self._process_audio_video_pipeline(
+                    input_file=input_file,
+                    audio_file=audio_file,
+                    driving_video=webcam_recording if use_webcam else driving_video_file,
+                    device=device,
+                    resize_factor=resize_factor,
+                    nosmooth=nosmooth,
+                    progress=progress
+                )
+            
+            # Standard audio-only processing
             # Initialize processor if model changed
             if self.processor is None or self.current_model != model_name:
                 progress(0, desc=f"Inizializzazione {model_name}...")
@@ -1545,6 +1871,67 @@ class LipSyncTab:
                         file_types=["audio"]
                     )
                     
+                    # Driving video section (visible only in audio_video mode)
+                    driving_video_section = gr.Group(visible=False)
+                    with driving_video_section:
+                        gr.Markdown("### 🎥 Driving Video (for body animation)")
+                        
+                        use_webcam = gr.Checkbox(
+                            value=False,
+                            label=self._t('lipsync.use_webcam'),
+                            info=self._t('lipsync.use_webcam_info')
+                        )
+                        
+                        driving_video_file = gr.File(
+                            label=self._t('lipsync.driving_video_file'),
+                            file_types=["video"],
+                            visible=True
+                        )
+                        
+                        # Webcam recording section
+                        # NOTE: Accordion ALWAYS visible=True (always rendered in DOM)
+                        # We use open=False to collapse it, NOT visible=False (which breaks webcam)
+                        with gr.Accordion("📹 Webcam Recording", open=False) as webcam_accordion:
+                            gr.Markdown("""
+                            # 🎬 SYNCHRONIZED RECORDING WITH COUNTDOWN
+                            
+                            **How it works (AUTOMATIC SYNC!):**
+                            1. When you upload audio, we add **5 BEEPS** at the start (countdown)
+                            2. Click **▶️ PLAY** on audio below → You'll hear: BEEP...BEEP...BEEP...BEEP...BEEP...[YOUR AUDIO]
+                            3. **Within 5 seconds**, click **🔴 RECORD** on webcam
+                            4. Lip-sync and move with your audio!
+                            5. Click **STOP** when done
+                            6. When you process, we **automatically trim** both audio and video from the exact start point
+                            
+                            ✅ **Perfect sync guaranteed!** No need for perfect timing, just start recording within 5 seconds!
+                            
+                            ⚠️ **Webcam Permissions:**
+                            - Browser will ask for camera → Click **ALLOW**
+                            - **Safari**: Settings → Websites → Camera → Allow
+                            - **Chrome/Firefox**: Click 🔒 → Camera → Allow
+                            """)
+                            
+                            # Side by side layout
+                            with gr.Row():
+                                # Audio player with countdown - LEFT
+                                audio_preview = gr.Audio(
+                                    label="🎵 STEP 1: Click ▶️ PLAY (listen to countdown beeps)",
+                                    type="filepath",
+                                    interactive=True,
+                                    scale=1
+                                )
+                                
+                                # Webcam - RIGHT
+                                webcam_recording = gr.Video(
+                                    sources=["webcam"],
+                                    label="📹 STEP 2: Click 🔴 RECORD within 5 seconds",
+                                    include_audio=False,
+                                    scale=1
+                                )
+                            
+                            # Hidden: stores path to audio with countdown
+                            audio_with_countdown_path = gr.Textbox(visible=False)
+                    
                     # Settings
                     with gr.Accordion(self._t('lipsync.advanced_settings'), open=False):
                         device_radio = gr.Radio(
@@ -1584,6 +1971,48 @@ class LipSyncTab:
                         max_lines=20
                     )
             
+            # Callbacks for conditional visibility
+            def toggle_driving_video_section(model_name):
+                """Show/hide driving video section based on model selection"""
+                # TheGargantuas LipSync requires driving video
+                return gr.Group(visible=(model_name == "thegargantuas_lipsync"))
+            
+            def toggle_video_input(use_webcam_flag):
+                """Toggle between file upload and webcam recording"""
+                if use_webcam_flag:
+                    # Show webcam accordion OPEN
+                    return (
+                        gr.File(visible=False),  # hide file upload
+                        gr.Accordion(open=True)  # open webcam accordion
+                    )
+                else:
+                    # Show file upload, close webcam accordion
+                    return (
+                        gr.File(visible=True),   # show file upload
+                        gr.Accordion(open=False) # close webcam accordion (still in DOM!)
+                    )
+            
+            # Update driving video section visibility when model changes
+            model_dropdown.change(
+                fn=toggle_driving_video_section,
+                inputs=[model_dropdown],
+                outputs=[driving_video_section]
+            )
+            
+            use_webcam.change(
+                fn=toggle_video_input,
+                inputs=[use_webcam],
+                outputs=[driving_video_file, webcam_accordion]  # changed from webcam_group
+            )
+            
+            # Update audio preview when audio file is uploaded
+            # Generate audio with countdown beeps for webcam sync
+            audio_file.change(
+                fn=self.prepare_audio_with_countdown,
+                inputs=[audio_file],
+                outputs=[audio_with_countdown_path, audio_preview]
+            )
+            
             # Wire up the process button
             process_btn.click(
                 fn=self.process_lipsync,
@@ -1593,7 +2022,11 @@ class LipSyncTab:
                     model_dropdown,
                     device_radio,
                     resize_factor,
-                    nosmooth
+                    nosmooth,
+                    use_webcam,
+                    driving_video_file,
+                    webcam_recording,
+                    audio_with_countdown_path  # Added for countdown sync
                 ],
                 outputs=[output_video, output_info]
             )

@@ -43,6 +43,7 @@ tyro>=0.5.0  # Per parsing argomenti CLI
 # Utilities
 tqdm>=4.66.0
 requests>=2.31.0
+huggingface-hub[cli]>=0.20.0  # For downloading LivePortrait checkpoints
 
 # Testing dependencies
 pytest>=7.4.0

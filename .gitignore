@@ -46,6 +46,7 @@ temp/
 .coverage
 htmlcov/
 *.pytest_cache
+test
 
 # Test data (media files for end-to-end testing)
 test_data/videos/

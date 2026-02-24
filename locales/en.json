@@ -46,6 +46,12 @@
     "resize_info": "Resize factor (1 = original, useful for large videos)",
     "nosmooth": "🎬 No Smooth",
     "nosmooth_info": "Disable temporal smoothing (may improve quality in some cases)",
+    "processing_mode": "🎯 Processing Mode",
+    "processing_mode_info": "Audio-only: lip sync only | Audio+Video: body animation + lip sync (LivePortrait + Wav2Lip GAN)",
+    "use_webcam": "📹 Use Webcam",
+    "use_webcam_info": "Record driving video from webcam instead of uploading file",
+    "driving_video_file": "🎬 Driving Video (for body movements)",
+    "webcam_recording": "📹 Record Driving Video",
     "process_button": "🚀 Generate Lip Sync",
     "output_video": "📹 Output Video",
     "info": "ℹ️ Info",
@@ -89,6 +95,18 @@
         "pros": ["Superior quality", "Also enhances face", "Professional results"],
         "cons": ["Very slow", "Requires powerful GPU", "Complex setup"],
         "best_for": "Professional production where quality is priority"
+      },
+      "liveportrait": {
+        "description": "Face + upper torso animation - Natural body movements",
+        "pros": ["Animates face and torso", "Natural body movements", "High quality", "Preserves full scene"],
+        "cons": ["Requires GPU", "Medium-high memory usage", "Static images only"],
+        "best_for": "Portrait animation with upper body movements"
+      },
+      "thegargantuas_lipsync": {
+        "description": "🔥 Complete pipeline - Body animation + perfect lip sync",
+        "pros": ["Animates body + face", "Perfect lip sync (Wav2Lip GAN)", "Natural movements", "Professional quality", "Full control with driving video"],
+        "cons": ["Requires driving video or webcam", "Slower (dual pipeline)", "Images only as source"],
+        "best_for": "Professional productions with natural body movements + perfect lip sync. Ideal for talking portraits with gestures."
       }
     }
   },
