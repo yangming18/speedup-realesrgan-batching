@@ -22,6 +22,7 @@ from utils.device_manager import DeviceManager
 from utils.i18n import get_i18n
 from tabs.upscaler_tab import UpscalerTab
 from tabs.lipsync_tab import LipSyncTab
+from tabs.subtitles_tab import SubtitlesTab
 from tabs.settings_tab import SettingsTab
 from tabs.support_tab import SupportTab
 from theme.custom_theme import CustomTheme, create_custom_css
@@ -44,6 +45,7 @@ class VideoEditorApp:
         # Initialize tabs
         self.upscaler_tab = UpscalerTab(self.temp_manager, self.device_manager)
         self.lipsync_tab = LipSyncTab(self.temp_manager, self.device_manager, self.i18n)
+        self.subtitles_tab = SubtitlesTab(self.i18n)
         self.settings_tab = SettingsTab(self.i18n, on_language_change=self.on_language_change)
         self.support_tab = SupportTab()
     
@@ -106,6 +108,7 @@ class VideoEditorApp:
             # Main Tabs
             self.upscaler_tab.create_tab()
             self.lipsync_tab.create_tab()
+            self.subtitles_tab.create_tab()
             self.settings_tab.create_tab()
             
             # Support tab at the end
@@ -122,7 +125,6 @@ class VideoEditorApp:
                 - 🎞️ Video Trimming & Cutting
                 - 🎨 Color Grading
                 - 🎵 Audio Enhancement
-                - 📝 Subtitle Generation
                 - 🔄 Format Conversion
                 - And much more!
                 

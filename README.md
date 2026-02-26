@@ -8,12 +8,40 @@ A Python-based video editing application with AI upscaling and lip-sync capabili
 
 - **🎨 AI Upscaling**: Enhance images and videos using RealESRGAN models
 - **👄 AI Lip Sync**: Synchronize lips with audio using 4 advanced models (Wav2Lip, Wav2Lip GAN, SadTalker, Video-Retalking)
+- **📝 AI Subtitles**: Generate accurate subtitles with Whisper + GPT/Groq/Gemini, multi-agent validation, and real-time editing
 - **🌐 Multi-language**: Full internationalization support (English, Italian, more coming)
-- **💯 100% Free**: No login, no subscriptions, no locked features
+- **💯 100% Free**: No login, no subscriptions, no locked features (Groq & Gemini APIs are 100% free!)
 - **🖥️ Multi-device Support**: CPU, GPU (CUDA), and MPS (Apple Silicon) acceleration
 - **🌍 Cross-platform**: Compatible with macOS, Windows, and Linux
 - **😊 Easy to Use**: Simple interface with powerful features
 - **🔓 Open Source**: Free software you can trust
+
+## 🚀 Try it on Google Colab (No PC Required!)
+
+Don't have a powerful PC? No problem! Run the app directly on Google Colab with **FREE GPU T4** acceleration.
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1dQScY7ALgOOIsfAdNCfZMxrfcSM5EPJK?usp=sharing)
+
+### Quick Start Guide (3 Simple Steps):
+
+#### Step 1: Run the Setup Cell
+Click the **play button** on the notebook cell to start downloading the repository and installing dependencies with GPU T4 support.
+
+![Step 1](img/Google%20Colab/collab_step1.png)
+
+#### Step 2: Launch the App
+After installation completes, you'll see two links. **Click the second link** (the one that does NOT start with `127.0.0.1`).
+
+![Step 2](img/Google%20Colab/collab_step2.png)
+
+#### Step 3: Start Editing!
+The Gradio interface will open in a new browser tab. You're ready to use all the features!
+
+![Step 3](img/Google%20Colab/collab_step3.png)
+
+> **💡 Pro Tip**: For best performance on Colab, use videos **shorter than 30 seconds** to avoid notebook timeouts. The GPU T4 is quite powerful, but long videos may take time to process.
+
+---
 
 ## Setup
 
@@ -103,7 +131,11 @@ The app will open in your browser at `http://localhost:7860`
 1. Launch the application:
    - **macOS/Linux**: `./run.sh`
    - **Windows**: `run.bat`
-2. Use the **Upscaler** tab to process images and videos
+2. Choose your workflow:
+   - **Upscaler** tab: Enhance images and videos with AI upscaling
+   - **Lip Sync** tab: Synchronize lips with audio using 4 AI models
+   - **Audio to Subtitles** tab: Generate accurate subtitles with Whisper + GPT/Groq/Gemini
+   - **Settings** tab: Configure API keys for OpenAI, Groq, and Gemini (Groq & Gemini are FREE!)
 3. Open the **🔍 Video Comparison Modal** to see examples of different models
 4. Check out the **❤️ Support Me** tab if you find the app useful!
 
@@ -194,7 +226,83 @@ The tab includes an interactive gallery to compare different AI lip-sync models:
 
 > 💡 **Tip**: All lip sync models are downloaded automatically on first use. Try the examples gallery to compare quality before processing your own content!
 
-## 📚 Documentation
+## � AI Subtitles Generation
+
+The Audio to Subtitles tab provides a complete AI-powered subtitle generation workflow with advanced validation.
+
+### 5-Step Workflow
+
+#### Step 1: Paste & Clean Lyrics
+- Paste your song lyrics or reference text
+- AI-powered cleaning removes timestamps, sections, and formatting
+- Supports OpenAI, Groq, and **Gemini (100% FREE with 1M tokens/min!)**
+
+#### Step 2: Upload Audio
+- Upload your audio file (MP3, WAV, M4A, etc.)
+- Supported formats: any audio format supported by FFmpeg
+
+#### Step 3: Transcribe Audio
+- Uses **Whisper** (faster-whisper) for word-level transcription
+- Extracts **both**:
+  - **Segments**: Standard subtitle grouping (phrases/sentences)
+  - **Words**: Word-by-word timing (precise karaoke-style)
+- Automatic language detection
+- Full audio transcription (no 30s limit!)
+
+#### Step 4: Generate Subtitles
+- AI generation using GPT (OpenAI), Llama (Groq), or Gemini (Google)
+- **3 Ultra-Detailed Modes**:
+  - **Disabled**: Standard subtitles (natural grouping)
+  - **Basic**: New subtitle on pauses (customizable threshold)
+  - **Word-by-Word**: One word per subtitle (karaoke-style)
+- **Multi-Agent Validation** (optional, enabled by default):
+  - 🤖 **Agent 1**: Timing Validator (overlaps, gaps, durations)
+  - 🤖 **Agent 2**: Lyrics Matcher (accuracy vs ground truth)
+  - 🤖 **Agent 3**: Format Validator (SRT/VTT/ASS compliance)
+  - 🤖 **Agent 4**: Text Corrector (applies fixes)
+  - 🧠 **Coordinator**: Decides when to stop (max 10 iterations)
+- **Real-time validation log**: See agent conversations and decisions
+- **Song-aware**: Agents understand long gaps in songs are normal (instrumental sections)
+
+#### Step 5: Preview & Edit
+- **Audio player** with waveform visualization
+- **Interactive subtitle editor**: Click subtitle to jump to timestamp
+- **Real-time editing**: Modify text, timing, or delete subtitles
+- **DataTable interface**: Edit timestamps and text directly
+
+### Export Formats
+
+- **SRT** (SubRip): Universal format, works everywhere
+- **VTT** (WebVTT): Web standard, supports styling
+- **ASS** (Advanced SubStation Alpha): Professional format with effects
+
+### API Provider Options
+
+| Provider | Cost | Models | Limits | Speed | Best For |
+|----------|------|--------|--------|-------|----------|
+| **Gemini** | **100% FREE** | Gemini 1.5 Pro/Flash, 2.0 Flash | **1M tokens/min** | ⚡⚡⚡⚡⚡ | **Everyone! Best free tier** |
+| **Groq** | **100% FREE** | Llama 3.3 70B, Llama 3.1 8B | 100k tokens/day | ⚡⚡⚡⚡⚡ | Fast alternative |
+| **OpenAI** | Paid ($) | GPT-4o, GPT-4o-mini | Pay per use | ⚡⚡⚡ | High accuracy needs |
+
+> 💡 **Tip**: Start with **Gemini** (free + highest limits!) for the best experience. The multi-agent validation works with all providers!
+
+### Advanced Settings
+
+- **Max Characters per Line**: 20-60 (default: 42)
+- **Max Lines per Subtitle**: 1-3 (default: 2)
+- **Pause Threshold**: 0.5-3.0s (for basic ultra mode)
+- **Multi-Agent Validation**: Toggle 4-agent validation system
+
+### Example Use Cases
+
+- **Music Videos**: Use word-by-word mode for karaoke-style subtitles
+- **Podcasts**: Standard mode for natural speech grouping
+- **Language Learning**: Multi-agent validation ensures perfect accuracy
+- **Professional Projects**: Export to ASS format with custom styling
+
+> 🎵 **Song Mode**: The system automatically detects songs and tells agents that long gaps (30-60s) are normal for instrumental breaks. No more incorrectly merged subtitles!
+
+## �📚 Documentation
 
 Comprehensive guides and documentation available in the [`docs/`](docs/) folder:
 

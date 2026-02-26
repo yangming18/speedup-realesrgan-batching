@@ -6,6 +6,7 @@ import gradio as gr
 import logging
 from pathlib import Path
 import json
+from utils import api_key_manager, get_openai_helper
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,93 @@ class SettingsTab:
         else:
             return f"❌ Errore cambio lingua"
     
+    def save_api_key(self, api_key: str, provider: str = "openai") -> tuple[str, str]:
+        """
+        Save and test API key for specified provider.
+        
+        Args:
+            api_key: API key to save
+            provider: "openai" or "groq"
+        
+        Returns:
+            Tuple of (status_message, models_json)
+        """
+        if not api_key or not api_key.strip():
+            return "❌ Please enter an API key", "[]"
+        
+        api_key = api_key.strip()
+        key_name = f"{provider.upper()}_API_KEY"
+        provider_label = "OpenAI" if provider == "openai" else "Groq"
+        
+        # Save encrypted
+        try:
+            api_key_manager.save_api_key(key_name, api_key)
+            
+            # Test connection
+            helper = get_openai_helper(api_key, provider)
+            success, message = helper.test_connection()
+            
+            if success:
+                # Get available models
+                models = helper.get_available_models()
+                models_json = json.dumps(models)
+                return f"✓ {provider_label} API Key saved and validated! {message}", models_json
+            else:
+                return f"⚠️ {provider_label} API Key saved but validation failed: {message}", "[]"
+                
+        except Exception as e:
+            logger.error(f"Error saving {provider} API key: {e}")
+            return f"❌ Error: {str(e)}", "[]"
+    
+    def test_api_key(self, provider: str = "openai") -> tuple[str, str]:
+        """
+        Test existing API key for specified provider.
+        
+        Args:
+            provider: "openai" or "groq"
+        
+        Returns:
+            Tuple of (status_message, models_json)
+        """
+        key_name = f"{provider.upper()}_API_KEY"
+        api_key = api_key_manager.get_api_key(key_name)
+        provider_label = "OpenAI" if provider == "openai" else "Groq"
+        
+        if not api_key:
+            return f"❌ No {provider_label} API key found. Please save one first.", "[]"
+        
+        try:
+            helper = get_openai_helper(api_key, provider)
+            success, message = helper.test_connection()
+            
+            if success:
+                models = helper.get_available_models()
+                models_json = json.dumps(models)
+                return f"✓ {message}", models_json
+            else:
+                return f"❌ {message}", "[]"
+                
+        except Exception as e:
+            return f"❌ Test failed: {str(e)}", "[]"
+    
+    def delete_api_key(self, provider: str = "openai") -> str:
+        """Delete saved API key for specified provider"""
+        key_name = f"{provider.upper()}_API_KEY"
+        provider_label = "OpenAI" if provider == "openai" else "Groq"
+        try:
+            api_key_manager.delete_api_key(key_name)
+            return f"✓ {provider_label} API Key deleted successfully"
+        except Exception as e:
+            return f"❌ Error deleting key: {str(e)}"
+    
+    def load_existing_api_key(self, key_name: str) -> str:
+        """Load existing API key (masked)"""
+        api_key = api_key_manager.get_api_key(key_name)
+        if api_key:
+            # Return masked version
+            return f"{api_key[:8]}...{api_key[-4:]}"
+        return ""
+    
     def create_tab(self):
         """Crea e ritorna l'interfaccia del tab Impostazioni"""
         with gr.Tab(self.i18n.t('tabs.settings')):
@@ -79,6 +167,214 @@ class SettingsTab:
             {self.i18n.t('settings.description')}
             """)
             
+            # === OPENAI API KEY SECTION ===
+            with gr.Accordion("🔑 OpenAI API Key", open=False):
+                gr.Markdown("""
+                ### API Key Configuration
+                
+                Configure your OpenAI API key to enable subtitle generation features.
+                Your API key is encrypted and stored securely on your machine.
+                
+                **Get your API key:** [OpenAI Platform](https://platform.openai.com/api-keys) *(Requires payment)*
+                """)
+                
+                with gr.Row():
+                    api_key_input = gr.Textbox(
+                        label="OpenAI API Key",
+                        placeholder="sk-proj-...",
+                        type="password",
+                        scale=3,
+                        info="Your API key will be encrypted before saving"
+                    )
+                    
+                    saved_key_display = gr.Textbox(
+                        label="Current Key (Masked)",
+                        value=self.load_existing_api_key("OPENAI_API_KEY"),
+                        interactive=False,
+                        scale=2
+                    )
+                
+                with gr.Row():
+                    save_key_btn = gr.Button("💾 Save & Test API Key", variant="primary")
+                    test_key_btn = gr.Button("🔍 Test Existing Key")
+                    delete_key_btn = gr.Button("🗑️ Delete Key", variant="stop")
+                
+                api_status = gr.Textbox(
+                    label="Status",
+                    interactive=False,
+                    lines=2
+                )
+                
+                models_state = gr.State([])
+                
+                # Wire up API key events
+                save_key_btn.click(
+                    fn=lambda key: self.save_api_key(key, "openai"),
+                    inputs=[api_key_input],
+                    outputs=[api_status, models_state]
+                ).then(
+                    fn=lambda: self.load_existing_api_key("OPENAI_API_KEY"),
+                    inputs=[],
+                    outputs=[saved_key_display]
+                )
+                
+                test_key_btn.click(
+                    fn=lambda: self.test_api_key("openai"),
+                    inputs=[],
+                    outputs=[api_status, models_state]
+                )
+                
+                delete_key_btn.click(
+                    fn=lambda: self.delete_api_key("openai"),
+                    inputs=[],
+                    outputs=[api_status]
+                ).then(
+                    fn=lambda: "",
+                    inputs=[],
+                    outputs=[saved_key_display]
+                )
+            
+            # === GROQ API KEY SECTION (FREE) ===
+            with gr.Accordion("🚀 Groq API Key (FREE)", open=False):
+                gr.Markdown("""
+                ### Groq API - Fast & Free Alternative
+                
+                Groq offers **FREE API access** with ultra-fast inference speeds!
+                Perfect for subtitle generation without any cost.
+                
+                **Get your FREE API key:** [Groq Console](https://console.groq.com/keys) *(No credit card required)*
+                
+                Available models: Llama 3.1 (8B/70B), Mixtral 8x7B, Gemma 2 9B
+                """)
+                
+                with gr.Row():
+                    groq_key_input = gr.Textbox(
+                        label="Groq API Key",
+                        placeholder="gsk_...",
+                        type="password",
+                        scale=3,
+                        info="Your API key will be encrypted before saving"
+                    )
+                    
+                    groq_saved_key_display = gr.Textbox(
+                        label="Current Key (Masked)",
+                        value=self.load_existing_api_key("GROQ_API_KEY"),
+                        interactive=False,
+                        scale=2
+                    )
+                
+                with gr.Row():
+                    groq_save_key_btn = gr.Button("💾 Save & Test API Key", variant="primary")
+                    groq_test_key_btn = gr.Button("🔍 Test Existing Key")
+                    groq_delete_key_btn = gr.Button("🗑️ Delete Key", variant="stop")
+                
+                groq_api_status = gr.Textbox(
+                    label="Status",
+                    interactive=False,
+                    lines=2
+                )
+                
+                groq_models_state = gr.State([])
+                
+                # Wire up Groq API key events
+                groq_save_key_btn.click(
+                    fn=lambda key: self.save_api_key(key, "groq"),
+                    inputs=[groq_key_input],
+                    outputs=[groq_api_status, groq_models_state]
+                ).then(
+                    fn=lambda: self.load_existing_api_key("GROQ_API_KEY"),
+                    inputs=[],
+                    outputs=[groq_saved_key_display]
+                )
+                
+                groq_test_key_btn.click(
+                    fn=lambda: self.test_api_key("groq"),
+                    inputs=[],
+                    outputs=[groq_api_status, groq_models_state]
+                )
+                
+                groq_delete_key_btn.click(
+                    fn=lambda: self.delete_api_key("groq"),
+                    inputs=[],
+                    outputs=[groq_api_status]
+                ).then(
+                    fn=lambda: "",
+                    inputs=[],
+                    outputs=[groq_saved_key_display]
+                )
+            
+            # === GEMINI API KEY SECTION (FREE) ===
+            with gr.Accordion("✨ Google Gemini API Key (FREE)", open=False):
+                gr.Markdown("""
+                ### Google Gemini API - Powerful & Free
+                
+                Google offers **FREE API access** with extremely generous limits!
+                **1 Million tokens per minute** - much higher than other free tiers.
+                
+                **Get your FREE API key:** [Google AI Studio](https://aistudio.google.com/app/apikey) *(Google account required, no credit card)*
+                
+                Available models: Gemini 1.5 Flash, Gemini 1.5 Pro, Gemini 2.0 Flash
+                """)
+                
+                with gr.Row():
+                    gemini_key_input = gr.Textbox(
+                        label="Gemini API Key",
+                        placeholder="AIza...",
+                        type="password",
+                        scale=3,
+                        info="Your API key will be encrypted before saving"
+                    )
+                    
+                    gemini_saved_key_display = gr.Textbox(
+                        label="Current Key (Masked)",
+                        value=self.load_existing_api_key("GEMINI_API_KEY"),
+                        interactive=False,
+                        scale=2
+                    )
+                
+                with gr.Row():
+                    gemini_save_key_btn = gr.Button("💾 Save & Test API Key", variant="primary")
+                    gemini_test_key_btn = gr.Button("🔍 Test Existing Key")
+                    gemini_delete_key_btn = gr.Button("🗑️ Delete Key", variant="stop")
+                
+                gemini_api_status = gr.Textbox(
+                    label="Status",
+                    interactive=False,
+                    lines=2
+                )
+                
+                gemini_models_state = gr.State([])
+                
+                # Wire up Gemini API key events
+                gemini_save_key_btn.click(
+                    fn=lambda key: self.save_api_key(key, "gemini"),
+                    inputs=[gemini_key_input],
+                    outputs=[gemini_api_status, gemini_models_state]
+                ).then(
+                    fn=lambda: self.load_existing_api_key("GEMINI_API_KEY"),
+                    inputs=[],
+                    outputs=[gemini_saved_key_display]
+                )
+                
+                gemini_test_key_btn.click(
+                    fn=lambda: self.test_api_key("gemini"),
+                    inputs=[],
+                    outputs=[gemini_api_status, gemini_models_state]
+                )
+                
+                gemini_delete_key_btn.click(
+                    fn=lambda: self.delete_api_key("gemini"),
+                    inputs=[],
+                    outputs=[gemini_api_status]
+                ).then(
+                    fn=lambda: "",
+                    inputs=[],
+                    outputs=[gemini_saved_key_display]
+                )
+            
+            gr.Markdown("---")
+            
+            # === LANGUAGE SETTINGS ===
             with gr.Row():
                 with gr.Column():
                     # Selezione lingua

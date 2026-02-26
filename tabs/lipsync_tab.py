@@ -203,18 +203,18 @@ LIPSYNC_MODELS = {
         'repo': 'https://github.com/OpenTalker/video-retalking.git',
         'checkpoint': None,
     },
-    'thegargantuas_lipsync': {
-        'name': 'TheGargantuas LipSync',
-        'description': '🔥 Pipeline completa - Animazione corpo + lip sync perfetto',
-        'quality': 5,  # 5 stelle (massima qualità)
-        'speed': 2,    # 2 fulmini (medio-lento, doppia pipeline)
-        'pros': ['Anima corpo + faccia', 'Lip sync perfetto (Wav2Lip GAN)', 'Movimenti naturali', 'Qualità professionale', 'Controllo completo con driving video'],
-        'cons': ['Richiede driving video o webcam', 'Più lento (doppia pipeline)', 'Solo immagini statiche come source'],
-        'best_for': 'Produzioni professionali con movimenti corpo naturali + lip sync perfetto. Ideale per talking portraits con gesti.',
-        'repo': None,  # Pipeline combinata (LivePortrait + Wav2Lip GAN)
-        'checkpoint': None,
-        'requires_driving_video': True,  # Flag speciale
-    },
+    # 'thegargantuas_lipsync': {  # 🚧 IN FASE DI SVILUPPO - Temporaneamente disabilitato
+    #     'name': 'TheGargantuas LipSync (in sviluppo)',
+    #     'description': '🔥 Pipeline completa - Animazione corpo + lip sync perfetto',
+    #     'quality': 5,  # 5 stelle (massima qualità)
+    #     'speed': 2,    # 2 fulmini (medio-lento, doppia pipeline)
+    #     'pros': ['Anima corpo + faccia', 'Lip sync perfetto (Wav2Lip GAN)', 'Movimenti naturali', 'Qualità professionale', 'Controllo completo con driving video'],
+    #     'cons': ['Richiede driving video o webcam', 'Più lento (doppia pipeline)', 'Solo immagini statiche come source'],
+    #     'best_for': 'Produzioni professionali con movimenti corpo naturali + lip sync perfetto. Ideale per talking portraits con gesti.',
+    #     'repo': None,  # Pipeline combinata (LivePortrait + Wav2Lip GAN)
+    #     'checkpoint': None,
+    #     'requires_driving_video': True,  # Flag speciale
+    # },
 }
 
 
