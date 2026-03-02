@@ -22,10 +22,17 @@ Don't have a powerful PC? No problem! Run the app directly on Google Colab with 
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1dQScY7ALgOOIsfAdNCfZMxrfcSM5EPJK?usp=sharing)
 
+> **📚 Complete Setup Guide**: 
+> - **Quick Copy-Paste Script**: [colab_notebook_setup.py](colab_notebook_setup.py) - Copy entire content to a Colab cell
+> - **Detailed Guide**: [docs/COLAB_SETUP.md](docs/COLAB_SETUP.md) - Full documentation with troubleshooting
+> - **Quick Fix**: [COLAB_FIX.md](COLAB_FIX.md) - If you're getting cryptography errors
+
 ### Quick Start Guide (3 Simple Steps):
 
 #### Step 1: Run the Setup Cell
 Click the **play button** on the notebook cell to start downloading the repository and installing dependencies with GPU T4 support.
+
+**⚠️ IMPORTANT**: The setup automatically installs `cryptography` FIRST to avoid import errors. This takes ~5-10 minutes.
 
 ![Step 1](img/Google%20Colab/collab_step1.png)
 
@@ -39,7 +46,11 @@ The Gradio interface will open in a new browser tab. You're ready to use all the
 
 ![Step 3](img/Google%20Colab/collab_step3.png)
 
-> **💡 Pro Tip**: For best performance on Colab, use videos **shorter than 30 seconds** to avoid notebook timeouts. The GPU T4 is quite powerful, but long videos may take time to process.
+> **💡 Pro Tips**: 
+> - Use **Groq API** (100k tokens/day FREE) instead of Gemini (20 req/day)
+> - Enable **Single Pass** validation mode to save API quota
+> - For best performance on Colab, use videos **shorter than 30 seconds** to avoid timeouts
+> - Check [Colab Setup Guide](docs/COLAB_SETUP.md) if you get errors
 
 ---
 
