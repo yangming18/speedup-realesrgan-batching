@@ -12,6 +12,7 @@ from typing import Optional, Callable
 import logging
 import gradio as gr
 from PIL import Image
+import cv2
 from utils.sadtalker_patch import patch_sadtalker_numpy_compatibility, check_if_patch_needed as check_sadtalker_patch
 from utils.liveportrait_patch import patch_liveportrait_numpy_compatibility, check_if_patch_needed as check_liveportrait_patch
 from utils.audio_countdown import add_countdown_to_audio, sync_audio_video_with_countdown
@@ -1714,6 +1715,69 @@ class LipSyncTab:
             logger.error(f"Error generating countdown audio: {e}", exc_info=True)
             return None, None
     
+    def _get_media_duration(self, file_path):
+        """Get duration of video or audio file in seconds"""
+        try:
+            # Try with opencv for video
+            cap = cv2.VideoCapture(file_path)
+            if cap.isOpened():
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+                cap.release()
+                if fps > 0:
+                    return frame_count / fps
+            
+            # Fallback to ffprobe for audio or if opencv fails
+            result = subprocess.run(
+                ['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+                 '-of', 'default=noprint_wrappers=1:nokey=1', file_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return float(result.stdout.strip())
+        except Exception as e:
+            logger.warning(f"Could not get duration for {file_path}: {e}")
+        return None
+    
+    def _check_duration_compatibility(self, input_file, audio_file):
+        """Check if video duration is appropriate for audio duration"""
+        # Get file path
+        input_path = input_file if isinstance(input_file, str) else input_file.name
+        audio_path = audio_file if isinstance(audio_file, str) else audio_file.name
+        
+        # Check if input is a video (not image)
+        ext = Path(input_path).suffix.lower()
+        if ext in ['.jpg', '.jpeg', '.png', '.webp', '.bmp']:
+            return None  # Images don't have duration, OK
+        
+        # Get durations
+        video_duration = self._get_media_duration(input_path)
+        audio_duration = self._get_media_duration(audio_path)
+        
+        if video_duration and audio_duration:
+            if video_duration > audio_duration:
+                diff = video_duration - audio_duration
+                return {
+                    'warning': True,
+                    'video_duration': video_duration,
+                    'audio_duration': audio_duration,
+                    'difference': diff,
+                    'message': f"⚠️ ATTENZIONE: Il video ({video_duration:.1f}s) è più lungo dell'audio ({audio_duration:.1f}s) di {diff:.1f} secondi.\n\nIl lipsync verrà applicato solo per la durata dell'audio. La parte finale del video ({diff:.1f}s) rimarrà senza sincronizzazione labiale."
+                }
+            elif video_duration < audio_duration:
+                diff = audio_duration - video_duration
+                return {
+                    'info': True,
+                    'video_duration': video_duration,
+                    'audio_duration': audio_duration,
+                    'difference': diff,
+                    'message': f"ℹ️ INFO: L'audio ({audio_duration:.1f}s) è più lungo del video ({video_duration:.1f}s).\n\nIl video verrà ripetuto/esteso automaticamente per coprire tutta la durata dell'audio."
+                }
+        
+        return None
+    
     def process_lipsync(
         self,
         input_file,
@@ -1734,6 +1798,14 @@ class LipSyncTab:
         
         if audio_file is None:
             return None, "❌ Per favore carica un file audio"
+        
+        # Check duration compatibility
+        duration_check = self._check_duration_compatibility(input_file, audio_file)
+        if duration_check and duration_check.get('warning'):
+            # Return warning but allow to continue
+            warning_msg = duration_check['message']
+            warning_msg += "\n\n⚠️ Vuoi continuare comunque? Se sì, riavvia la generazione.\n\nPer risultati ottimali, usa un video della stessa durata (o più corto) dell'audio."
+            return None, warning_msg
         
         # Check driving video for TheGargantuas LipSync model
         if model_name == "thegargantuas_lipsync":
@@ -1834,6 +1906,19 @@ class LipSyncTab:
             gr.Markdown(f"""
             # {self._t('lipsync.title')}
             {self._t('lipsync.description')}
+            
+            ---
+            
+            ### ⚠️ Nota Importante sulla Durata dei File
+            
+            **Per risultati ottimali:**
+            - Il **video deve essere più corto o uguale** alla durata dell'audio
+            - Se il video è più lungo dell'audio, solo la parte corrispondente alla durata dell'audio verrà sincronizzata
+            - Se l'audio è più lungo del video, il video verrà esteso/ripetuto automaticamente
+            
+            💡 **Suggerimento:** Usa video della stessa durata dell'audio per evitare problemi di sincronizzazione.
+            
+            ---
             """)
             
             with gr.Row():

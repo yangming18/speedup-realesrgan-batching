@@ -101,9 +101,14 @@ class UpscalerTab:
             # Convert to PIL Image
             output_image = Image.fromarray(output)
             
+            # Normalize format for PIL (JPG -> JPEG)
+            save_format = input_format.upper()
+            if save_format == 'JPG':
+                save_format = 'JPEG'
+            
             # Save to temp file with same format as input
             output_path = self.temp_manager.get_temp_file_path(f"upscaled_image.{input_format}")
-            output_image.save(output_path, format=input_format.upper())
+            output_image.save(output_path, format=save_format)
             
             info = f"✓ Image upscaled successfully\n{load_msg}\n"
             info += f"Original size: {img.shape[1]}x{img.shape[0]}\n"
@@ -322,7 +327,7 @@ class UpscalerTab:
             img = Image.open(file_path)
             # Use the same format as input (strip the dot from extension)
             input_format = ext[1:]  # Remove the leading dot
-            # Handle jpeg -> jpg conversion
+            # Normalize format: both jpg and jpeg should use jpg for filename, JPEG for PIL
             if input_format == 'jpeg':
                 input_format = 'jpg'
             result, info = self.upscale_image(img, model_name, device, input_format)
