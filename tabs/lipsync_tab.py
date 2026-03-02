@@ -1759,21 +1759,31 @@ class LipSyncTab:
         if video_duration and audio_duration:
             if video_duration > audio_duration:
                 diff = video_duration - audio_duration
+                # Use translation for warning message
+                message = self._t('lipsync.duration_check_video_longer_msg',
+                                video_duration=video_duration,
+                                audio_duration=audio_duration,
+                                difference=diff)
                 return {
                     'warning': True,
                     'video_duration': video_duration,
                     'audio_duration': audio_duration,
                     'difference': diff,
-                    'message': f"⚠️ ATTENZIONE: Il video ({video_duration:.1f}s) è più lungo dell'audio ({audio_duration:.1f}s) di {diff:.1f} secondi.\n\nIl lipsync verrà applicato solo per la durata dell'audio. La parte finale del video ({diff:.1f}s) rimarrà senza sincronizzazione labiale."
+                    'message': message
                 }
             elif video_duration < audio_duration:
                 diff = audio_duration - video_duration
+                # Use translation for info message
+                message = self._t('lipsync.duration_check_audio_longer_msg',
+                                video_duration=video_duration,
+                                audio_duration=audio_duration,
+                                difference=diff)
                 return {
                     'info': True,
                     'video_duration': video_duration,
                     'audio_duration': audio_duration,
                     'difference': diff,
-                    'message': f"ℹ️ INFO: L'audio ({audio_duration:.1f}s) è più lungo del video ({video_duration:.1f}s).\n\nIl video verrà ripetuto/esteso automaticamente per coprire tutta la durata dell'audio."
+                    'message': message
                 }
         
         return None
@@ -1804,7 +1814,7 @@ class LipSyncTab:
         if duration_check and duration_check.get('warning'):
             # Return warning but allow to continue
             warning_msg = duration_check['message']
-            warning_msg += "\n\n⚠️ Vuoi continuare comunque? Se sì, riavvia la generazione.\n\nPer risultati ottimali, usa un video della stessa durata (o più corto) dell'audio."
+            warning_msg += self._t('lipsync.duration_check_continue_prompt')
             return None, warning_msg
         
         # Check driving video for TheGargantuas LipSync model
@@ -1903,23 +1913,32 @@ class LipSyncTab:
     def create_tab(self):
         """Create and return the Lip Sync tab interface"""
         with gr.Tab(self._t('tabs.lipsync')):
-            gr.Markdown(f"""
-            # {self._t('lipsync.title')}
-            {self._t('lipsync.description')}
+            gr.Markdown("""
+            # {title}
+            {description}
             
             ---
             
-            ### ⚠️ Nota Importante sulla Durata dei File
+            ### {duration_title}
             
-            **Per risultati ottimali:**
-            - Il **video deve essere più corto o uguale** alla durata dell'audio
-            - Se il video è più lungo dell'audio, solo la parte corrispondente alla durata dell'audio verrà sincronizzata
-            - Se l'audio è più lungo del video, il video verrà esteso/ripetuto automaticamente
+            **{requirement_label}**
+            - {requirement}
+            - {video_longer}
+            - {audio_longer}
             
-            💡 **Suggerimento:** Usa video della stessa durata dell'audio per evitare problemi di sincronizzazione.
+            {suggestion}
             
             ---
-            """)
+            """.format(
+                title=self._t('lipsync.title'),
+                description=self._t('lipsync.description'),
+                duration_title=self._t('lipsync.duration_warning_title'),
+                requirement_label=self._t('common.info') if self.i18n else 'ℹ️ Info',
+                requirement=self._t('lipsync.duration_warning_requirement'),
+                video_longer=self._t('lipsync.duration_warning_video_longer'),
+                audio_longer=self._t('lipsync.duration_warning_audio_longer'),
+                suggestion=self._t('lipsync.duration_warning_suggestion')
+            ))
             
             with gr.Row():
                 with gr.Column():
