@@ -40,14 +40,63 @@ class SubtitlesTab:
     def update_models_for_provider(self, provider: str, task: str = "clean") -> dict:
         """
         Update model choices when provider changes.
+        Dynamically loads models from API if possible.
         
         Args:
             provider: "openai", "groq", or "gemini"
             task: "clean" or "gen" (generation)
         
         Returns:
-            gr.Dropdown.update() dict
+            gr.update() dict for Dropdown
         """
+        # Try to get API key for the provider
+        api_key = None
+        try:
+            if provider == "openai":
+                api_key = api_key_manager.get_api_key("OPENAI_API_KEY")
+            elif provider == "groq":
+                api_key = api_key_manager.get_api_key("GROQ_API_KEY")
+            elif provider == "gemini":
+                api_key = api_key_manager.get_api_key("GEMINI_API_KEY")
+        except:
+            pass  # If key doesn't exist, use fallback
+        
+        # If we have API key, try to load models from API
+        if api_key:
+            try:
+                from utils.openai_helper import OpenAIHelper
+                helper = OpenAIHelper(api_key=api_key, provider=provider)
+                models_list = helper.get_available_models()
+                
+                if models_list:
+                    # Extract just the model IDs
+                    choices = [m['id'] for m in models_list]
+                    
+                    # Select appropriate default based on task
+                    if task == "clean":
+                        # Prefer fastest/cheapest model for cleaning
+                        if provider == "groq":
+                            value = next((m for m in choices if '8b' in m.lower() and 'instant' in m.lower()), choices[0])
+                        elif provider == "gemini":
+                            value = next((m for m in choices if 'flash' in m.lower()), choices[0])
+                        else:  # openai
+                            value = next((m for m in choices if 'mini' in m.lower()), choices[0])
+                    else:  # generation
+                        # Prefer best quality model for generation
+                        if provider == "groq":
+                            value = next((m for m in choices if '70b' in m.lower() or '405b' in m.lower()), choices[0])
+                        elif provider == "gemini":
+                            value = next((m for m in choices if 'pro' in m.lower()), choices[0])
+                        else:  # openai
+                            value = next((m for m in choices if 'gpt-4o' in m.lower() and 'mini' not in m.lower()), choices[0])
+                    
+                    logger.info(f"Loaded {len(choices)} models from {provider} API")
+                    return gr.update(choices=choices, value=value)
+            except Exception as e:
+                logger.warning(f"Failed to load models from {provider} API: {e}")
+        
+        # Fallback to hardcoded lists
+        logger.debug(f"Using fallback model list for {provider}")
         if provider == "groq":
             if task == "clean":
                 choices = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "mixtral-8x7b-32768"]
@@ -57,11 +106,11 @@ class SubtitlesTab:
                 value = "llama-3.3-70b-versatile"
         elif provider == "gemini":
             if task == "clean":
-                choices = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-2.0-flash-exp"]
-                value = "gemini-1.5-flash-latest"
+                choices = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-flash-preview"]
+                value = "gemini-2.5-flash"
             else:  # generation
-                choices = ["gemini-1.5-pro-latest", "gemini-1.5-flash-latest", "gemini-2.0-flash-exp"]
-                value = "gemini-1.5-pro-latest"
+                choices = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-3-flash-preview"]
+                value = "gemini-2.5-pro"
         else:  # openai
             if task == "clean":
                 choices = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo"]
@@ -70,7 +119,7 @@ class SubtitlesTab:
                 choices = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
                 value = "gpt-4o"
         
-        return gr.Dropdown(choices=choices, value=value)
+        return gr.update(choices=choices, value=value)
     
     def get_whisper_model(self, model_size: str, device: str):
         """Load or get cached Whisper model"""
@@ -87,7 +136,7 @@ class SubtitlesTab:
         self,
         lyrics: str,
         is_clean: bool,
-        gpt_model: str,
+        model: str,
         provider: str = "openai",
         progress=gr.Progress()
     ) -> Tuple[str, str]:
@@ -97,7 +146,7 @@ class SubtitlesTab:
         Args:
             lyrics: Raw lyrics text
             is_clean: Skip cleaning if True
-            gpt_model: Model to use
+            model: Model to use
             provider: "openai" or "groq"
         
         Returns:
@@ -136,7 +185,7 @@ class SubtitlesTab:
             # Call GPT
             cleaned = helper.call_gpt(
                 messages=messages,
-                model=gpt_model,
+                model=model,
                 temperature=0.3,  # Low temperature for consistent cleaning
                 max_tokens=4000
             )
@@ -239,14 +288,14 @@ class SubtitlesTab:
         self,
         transcript_json: str,
         cleaned_lyrics: str,
-        gpt_model: str,
+        model: str,
         subtitle_format: str,
         ultra_mode: str,
         pause_threshold: float,
         max_chars_per_line: int,
         max_lines: int,
         provider: str = "openai",
-        use_multiagent: bool = False,
+        validation_mode: str = "single_pass",
         audio_duration: float = 0.0,
         max_iterations: int = 3,
         progress=gr.Progress()
@@ -257,14 +306,14 @@ class SubtitlesTab:
         Args:
             transcript_json: JSON string with Whisper word timestamps
             cleaned_lyrics: Clean reference lyrics
-            gpt_model: Model to use
+            model: Model to use
             subtitle_format: SRT, VTT, or ASS
             ultra_mode: disabled, basic, or word_by_word
             pause_threshold: Pause duration for new subtitle
             max_chars_per_line: Max characters per line
             max_lines: Max lines per subtitle
             provider: "openai" or "groq"
-            use_multiagent: Enable multi-agent validation system
+            validation_mode: 'single_pass' or 'multi_agent'
             audio_duration: Total audio duration in seconds
         
         Returns:
@@ -310,53 +359,146 @@ class SubtitlesTab:
             # Format transcript for GPT
             formatted_transcript = self._format_transcript(source_data, ultra_mode)
             
-            system_prompt = f"""You are an expert subtitle generator. You create {subtitle_format} format subtitles.
+            # Add word count info for word-by-word mode
+            word_count_info = ""
+            if ultra_mode == "word_by_word":
+                expected_words = len(source_data)
+                word_count_info = f"\n⚠️  CRITICAL: You MUST generate exactly {expected_words} subtitles (one per word).\n"
+            
+            # Different system prompts for word-by-word vs standard modes
+            if ultra_mode == "word_by_word":
+                system_prompt = f"""🎯 KARAOKE SUBTITLE GENERATOR
+
+🚨 ABSOLUTE REQUIREMENT 🚨
+Generate ALL {len(source_data)} subtitles. No exceptions.
+
+INPUT: {len(source_data)} words
+OUTPUT: {len(source_data)} subtitles
+
+RULES:
+1. ONE subtitle per word (no grouping)
+2. Use exact Whisper timestamps
+3. Fix transcription errors using lyrics
+4. NEVER STOP EARLY - complete ALL {len(source_data)} words
+5. Format: Concise SRT (no extra spacing)
+
+{mode_instructions}
+
+START: Subtitle #1
+END: Subtitle #{len(source_data)}
+
+DO NOT write explanations, DO NOT stop at a round number, DO NOT summarize.
+Output the COMPLETE {subtitle_format} file from 1 to {len(source_data)}.
+"""
+            else:
+                system_prompt = f"""You are an expert subtitle generator. You create {subtitle_format} format subtitles.
 
 Your task:
 1. Match the Whisper timestamps with the reference lyrics
 2. Generate properly formatted {subtitle_format} subtitles
 3. Follow subtitle best practices
-
+{word_count_info}
 {mode_instructions}
 
 Output ONLY the {subtitle_format} formatted subtitles, nothing else."""
 
-            user_prompt = f"""Reference Lyrics (ground truth text):
-{cleaned_lyrics}
+            # Truncate lyrics if too long (word-by-word doesn't need full context)
+            if ultra_mode == "word_by_word" and len(cleaned_lyrics) > 1500:
+                lyrics_preview = cleaned_lyrics[:1500] + "\n[...lyrics truncated for space...]"
+            else:
+                lyrics_preview = cleaned_lyrics
+            
+            user_prompt = f"""Reference Lyrics:
+{lyrics_preview}
 
 ---
 
-Whisper Transcription (with word timestamps):
+Whisper Transcript ({len(source_data)} words):
 {formatted_transcript}
 
 ---
 
-Generate {subtitle_format} subtitles following all rules."""
+GENERATE ALL {len(source_data)} SUBTITLES NOW.
+Start from word 1, end at word {len(source_data)}.
+Do not stop until complete."""
 
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ]
             
-            # Call GPT
+            # Call GPT with appropriate max_tokens for word-by-word mode
+            if ultra_mode == "word_by_word":
+                # Gemini max: 8,192 tokens
+                # 266 subtitles ≈ 5,000 tokens (well within limit)
+                max_tokens = 8192  # Use Gemini's maximum
+            else:
+                max_tokens = 8000
+            
+            progress(0.5, f"Generating ALL {len(source_data)} subtitles with {provider_label}...")
             subtitles = helper.call_gpt(
                 messages=messages,
-                model=gpt_model,
-                temperature=0.2,  # Low temperature for precise formatting
-                max_tokens=8000
+                model=model,
+                temperature=0.1,  # VERY low temperature to follow instructions precisely
+                max_tokens=max_tokens,
+                progress_callback=lambda p, msg: progress(0.4 + p * 0.3 if p is not None else 0.5, msg)
             )
             
             if not subtitles:
                 return "", f"❌ {provider_label} API call failed - no response received", ""
             
+            # COMPLETENESS CHECK for word-by-word mode
+            if ultra_mode == "word_by_word":
+                subtitle_count = subtitles.count('\n\n') + 1  # Count subtitle blocks
+                expected_count = len(source_data)
+                
+                if subtitle_count < expected_count:
+                    progress(0.6, f"⚠️ Incomplete: {subtitle_count}/{expected_count} subtitles. Generating missing parts...")
+                    
+                    # Calculate missing range
+                    missing_count = expected_count - subtitle_count
+                    start_idx = subtitle_count  # Start from where it stopped
+                    
+                    # Extract missing words from source_data
+                    missing_words = source_data[start_idx:expected_count]
+                    missing_transcript = self._format_transcript(missing_words, ultra_mode)
+                    
+                    # Generate completion prompt
+                    completion_prompt = f"""Continue generating subtitles from #{start_idx + 1} to #{expected_count}.
+
+Already generated: {subtitle_count} subtitles
+Missing: {missing_count} subtitles
+
+Continue from here:
+{missing_transcript}
+
+Generate subtitles #{start_idx + 1} through #{expected_count} in {subtitle_format} format.
+Start with index {start_idx + 1}, use exact Whisper timestamps."""
+                    
+                    completion = helper.call_gpt(
+                        messages=[
+                            {"role": "system", "content": f"You are a subtitle generator. Continue the subtitle file."},
+                            {"role": "user", "content": completion_prompt}
+                        ],
+                        model=model,
+                        temperature=0.1,
+                        max_tokens=max_tokens,
+                        progress_callback=lambda p, msg: progress(0.6 + p * 0.1 if p is not None else 0.65, msg)
+                    )
+                    
+                    if completion:
+                        # Append missing subtitles
+                        subtitles = subtitles.rstrip() + "\n\n" + completion.strip()
+                        progress(0.7, f"✓ Completed: Now have {subtitle_count + completion.count(chr(10)+chr(10)) + 1} subtitles")
+            
             validation_log = ""
             
             # Multi-Agent Validation (if enabled)
-            if use_multiagent and audio_duration > 0:
+            if validation_mode == "multi_agent" and audio_duration > 0:
                 progress(0.7, "Running multi-agent validation...")
                 
                 try:
-                    agent_system = SubtitleAgentSystem(helper, gpt_model, max_iterations=max_iterations)
+                    agent_system = SubtitleAgentSystem(helper, model, max_iterations=max_iterations)
                     
                     # Pass full context to agents including UI parameters
                     agent_context = {
@@ -364,7 +506,8 @@ Generate {subtitle_format} subtitles following all rules."""
                         'ultra_detailed_mode': ultra_mode,
                         'max_chars_per_line': max_chars_per_line,
                         'max_lines_per_subtitle': max_lines,
-                        'content_type': 'song'  # KEY: Tell agents this is a song (long gaps are normal)
+                        'content_type': 'song',  # KEY: Tell agents this is a song (long gaps are normal)
+                        'subtitle_mode': ultra_mode  # EXPLICIT: Tell agents which mode we're in
                     }
                     
                     # Use words data for agent analysis (most detailed)
@@ -377,7 +520,7 @@ Generate {subtitle_format} subtitles following all rules."""
                         audio_duration=audio_duration,
                         subtitle_format=subtitle_format,
                         context=agent_context,
-                        progress_callback=lambda p, msg: progress(0.7 + p * 0.3, msg)
+                        progress_callback=lambda p, msg: progress(0.7 + p * 0.3 if p is not None else 0.7, msg)
                     )
                     
                     subtitles = corrected_subtitles
@@ -394,7 +537,7 @@ Generate {subtitle_format} subtitles following all rules."""
                         validation_log = f"""⚠️  RATE LIMIT EXCEEDED
 
 Provider: {provider_label}
-Model: {gpt_model}
+Model: {model}
 
 {error_details}
 
@@ -413,7 +556,7 @@ Using original subtitles without validation."""
                         validation_log = f"⚠️ Multi-agent validation failed: {error_details}\n\nUsing original subtitles."
             
             status_msg = f"✓ {subtitle_format} subtitles generated successfully!"
-            if use_multiagent and "RATE LIMIT" not in validation_log:
+            if validation_mode == "multi_agent" and "RATE LIMIT" not in validation_log:
                 status_msg += " (Multi-agent validated)"
             
             return subtitles, status_msg, validation_log
@@ -422,29 +565,74 @@ Using original subtitles without validation."""
             logger.error(f"Error generating subtitles: {e}")
             error_msg = str(e)
             
-            # Enhanced error message with provider info and solutions
-            if "rate_limit" in error_msg.lower() or "429" in error_msg:
-                detailed_error = f"""❌ RATE LIMIT EXCEEDED
+            # Check if it's QUOTA EXCEEDED (daily limit) - more serious than rate limit
+            is_quota_exceeded = (
+                "quota exceeded" in error_msg.lower() or 
+                "GenerateRequestsPerDay" in error_msg or
+                "current quota" in error_msg.lower() or
+                ("limit: 0" in error_msg and "PerDay" in error_msg)
+            )
+            
+            # Check if it's rate limit (temporary, retriable)
+            is_rate_limit = (
+                "rate_limit" in error_msg.lower() or 
+                "429" in error_msg
+            )
+            
+            if is_quota_exceeded:
+                # Daily quota exhausted - need immediate action
+                detailed_error = f"""❌ DAILY QUOTA EXHAUSTED
 
 Provider: {provider_label}
-Model: {gpt_model}
+Model: {model}
+
+⚠️ You've used all your daily requests. This is NOT a rate limit - you must wait or switch provider.
+
+🔥 IMMEDIATE SOLUTIONS (choose one):
+
+1. ⭐ SWITCH TO GROQ (RECOMMENDED):
+   → Get free API key: https://console.groq.com/keys
+   → Add in Settings tab
+   → Select "Groq" as provider
+   → Limits: 100k tokens/day (much higher!)
+
+2. ⚡ Switch to OpenAI:
+   → Pay-as-you-go model
+   → No daily limits
+   → Add key in Settings tab
+
+3. ⏰ Wait for reset:
+   → Gemini free tier limits:
+      • gemini-2.5-flash: 20 requests/day
+      • gemini-2.5-pro: 10 requests/day
+   → Resets at midnight Pacific Time
+   → Track usage: https://ai.dev/rate-limit
+
+💡 TIP: Use "Single Pass" mode to save API calls (currently uses 1 call vs 12-16 in Multi-Agent)
+
+Error Details:
+{error_msg}"""
+            
+            elif is_rate_limit:
+                # Temporary rate limit - can retry
+                detailed_error = f"""❌ RATE LIMIT (temporary - can retry)
+
+Provider: {provider_label}
+Model: {model}
 
 Error Details:
 {error_msg}
 
 SOLUTIONS:
 1. Reduce 'Max Agent Iterations' slider (currently: {max_iterations})
-2. Disable 'Multi-Agent Validation' temporarily
+2. Switch to "Single Pass" validation mode (saves 12-16 API calls)
 3. Switch to a different provider:
-   - ✨ Gemini: 1M tokens/min (Best!) - Settings tab
-   - Groq: 100k tokens/day - Good alternative
+   - ✨ Groq: 100k tokens/day - Good alternative
+   - ⭐ Gemini: Try gemini-2.5-flash (higher limits than pro)
 4. Wait for the cooldown period specified above
 5. Provider limits comparison:
-   - Gemini Free: 1M tokens/min (15 RPM)
-   - Groq Free: 100k tokens/day
-   - Each song with 3 iterations: ~30-40k tokens
-6. For Groq: Upgrade at https://console.groq.com/settings/billing
-7. For OpenAI: Check usage at https://platform.openai.com/usage"""
+   - Gemini Free: 15 RPM, 1M tokens/min
+   - Groq Free: 30 RPM, 100k tokens/day"""
             else:
                 detailed_error = f"❌ Error from {provider_label} API:\n\n{error_msg}"
             
@@ -458,6 +646,49 @@ SOLUTIONS:
         max_lines: int
     ) -> str:
         """Get mode-specific instructions for GPT"""
+        
+        if ultra_mode == "word_by_word":
+            # Word-by-word mode: EVERY word must be included, one subtitle per word
+            return """
+🎯 WORD-BY-WORD MODE (KARAOKE):
+
+MANDATORY RULES:
+1. Generate EXACTLY one subtitle for each word in the transcript
+2. Each subtitle contains EXACTLY one word (the word itself)
+3. Use the EXACT start/end timestamps from Whisper for each word
+4. If Whisper transcribed a word wrong, use the correct word from reference lyrics
+5. Generate subtitles for ALL words - do NOT skip any word for any reason
+
+⚠️  CRITICAL: DO NOT STOP EARLY!
+- If you have 266 words, generate ALL 266 subtitles
+- Do not generate just 10-20 as an example
+- Do not stop at the end of a line/verse
+- Continue processing until EVERY word has its subtitle
+
+EXAMPLE INPUT (3 words):
+[
+  {"word": "hello", "start": 0.5, "end": 0.8},
+  {"word": "world", "start": 0.9, "end": 1.2},
+  {"word": "now", "start": 1.3, "end": 1.6}
+]
+
+REQUIRED OUTPUT (3 subtitles):
+1
+00:00:00,500 --> 00:00:00,800
+Hello
+
+2
+00:00:00,900 --> 00:00:01,200
+World
+
+3
+00:00:01,300 --> 00:00:01,600
+Now
+
+If you have N words in input, you MUST generate N subtitles in output.
+"""
+        
+        # Standard modes: apply character/line limits
         base_rules = f"""
 Subtitle Formatting Rules:
 - Maximum {max_chars_per_line} characters per line
@@ -475,14 +706,6 @@ Ultra Detailed Mode: Basic Pause Handling
 - When there's a pause of {pause_threshold} seconds or more between words, create a new subtitle
 - Group words naturally within each subtitle
 - Respect natural phrase and sentence boundaries
-"""
-        
-        elif ultra_mode == "word_by_word":
-            return base_rules + """
-Ultra Detailed Mode: Word-by-Word
-- Create ONE subtitle for EACH individual word
-- Each subtitle shows exactly one word with its precise timing
-- Perfect for karaoke-style subtitles or language learning
 """
         
         return base_rules
@@ -665,245 +888,299 @@ Ultra Detailed Mode: Word-by-Word
             """)
             
             # === STEP 1: Upload Files ===
-            with gr.Accordion("📁 Step 1: Upload Files", open=True):
-                with gr.Row():
-                    audio_input = gr.Audio(
-                        label="Audio File",
-                        type="filepath",
-                        sources=["upload"]
-                    )
-                    
-                    lyrics_input = gr.Textbox(
-                        label="Lyrics",
-                        placeholder="Paste your lyrics here...",
-                        lines=10
-                    )
-                
-                is_clean_checkbox = gr.Checkbox(
-                    label="Lyrics are already clean (no AI tags like [Verse], [Chorus], etc.)",
-                    value=False
+            gr.Markdown("## 📁 Step 1: Upload Files")
+            with gr.Row():
+                audio_input = gr.Audio(
+                    label="Audio File",
+                    type="filepath",
+                    sources=["upload"]
                 )
+                
+                lyrics_input = gr.Textbox(
+                    label="Lyrics",
+                    placeholder="Paste your lyrics here...",
+                    lines=10
+                )
+            
+            is_clean_checkbox = gr.Checkbox(
+                label="Lyrics are already clean (no AI tags like [Verse], [Chorus], etc.)",
+                value=False
+            )
             
             # === STEP 2: Clean Lyrics ===
-            with gr.Accordion("🧹 Step 2: Clean Lyrics", open=True):
-                gr.Markdown("Remove AI formatting tags (Suno, Udio, Mureka) to get clean text.")
-                
+            gr.Markdown("## 🧹 Step 2: Clean Lyrics")
+            gr.Markdown("Remove AI formatting tags (Suno, Udio, Mureka) to get clean text.")
+            
+            provider_clean = gr.Radio(
+                choices=[
+                    ("OpenAI (Paid)", "openai"),
+                    ("Groq (FREE)", "groq"),
+                    ("Gemini (FREE - Best)", "gemini")
+                ],
+                value="gemini",
+                label="API Provider",
+                info="✨ Gemini: 1M tokens/min (Best free tier!)"
+            )
+            
+            # Model selection in collapsible accordion to avoid dropdown positioning issues
+            with gr.Accordion("🔧 Select Model", open=False):
                 with gr.Row():
-                    provider_clean = gr.Radio(
-                        choices=[
-                            ("OpenAI (Paid)", "openai"),
-                            ("Groq (FREE)", "groq"),
-                            ("Gemini (FREE - Best)", "gemini")
-                        ],
-                        value="gemini",
-                        label="API Provider",
-                        info="✨ Gemini: 1M tokens/min (Best free tier!)"
-                    )
-                
-                with gr.Row():
-                    gpt_model_clean = gr.Dropdown(
-                        choices=["gemini-1.5-flash-latest", "gemini-1.5-pro-latest"],
-                        value="gemini-1.5-flash-latest",
-                        label="Model for Cleaning",
-                        info="Fast model recommended for cleaning"
+                    model_clean_openai = gr.Radio(
+                        choices=["gpt-4o-mini", "gpt-4o", "gpt-4-turbo"],
+                        value="gpt-4o-mini",
+                        label="OpenAI Model",
+                        info="Fast model recommended for cleaning",
+                        visible=False
                     )
                     
-                    clean_btn = gr.Button("🧹 Clean Lyrics", variant="primary")
-                
-                cleaned_lyrics = gr.Textbox(
-                    label="Cleaned Lyrics (editable)",
-                    placeholder="Cleaned lyrics will appear here...",
-                    lines=10,
-                    interactive=True
-                )
-                
-                clean_status = gr.Textbox(label="Status", interactive=False, lines=1)
+                    model_clean_groq = gr.Radio(
+                        choices=["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "mixtral-8x7b-32768"],
+                        value="llama-3.1-8b-instant",
+                        label="Groq Model",
+                        info="Fast model recommended for cleaning",
+                        visible=False
+                    )
+                    
+                    model_clean_gemini = gr.Radio(
+                        choices=["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-flash-preview"],
+                        value="gemini-2.5-flash",
+                        label="Gemini Model",
+                        info="Fast model recommended for cleaning",
+                        visible=True
+                    )
+            
+            clean_btn = gr.Button("🧹 Clean Lyrics", variant="primary")
+            
+            cleaned_lyrics = gr.Textbox(
+                label="Cleaned Lyrics (editable)",
+                placeholder="Cleaned lyrics will appear here...",
+                lines=10,
+                interactive=True
+            )
+            
+            clean_status = gr.Textbox(label="Status", interactive=False, lines=1)
             
             # === STEP 3: Transcribe Audio ===
-            with gr.Accordion("🎤 Step 3: Transcribe with Whisper", open=True):
+            gr.Markdown("## 🎤 Step 3: Transcribe with Whisper")
+            with gr.Accordion("🔧 Select Model & Device", open=False):
                 with gr.Row():
-                    whisper_model_select = gr.Dropdown(
+                    whisper_model_select = gr.Radio(
                         choices=["tiny", "base", "small", "medium", "large"],
                         value="medium",
                         label="Whisper Model",
                         info="medium gives best accuracy"
                     )
                     
-                    device_select = gr.Dropdown(
+                    device_select = gr.Radio(
                         choices=["cpu", "cuda"],
                         value="cpu",
                         label="Device",
                         info="Use CUDA if you have NVIDIA GPU"
                     )
-                    
-                    transcribe_btn = gr.Button("🎤 Transcribe Audio", variant="primary")
                 
-                transcript_json = gr.Textbox(
-                    label="Transcript (JSON with word timestamps)",
-                    lines=8,
-                    interactive=False
-                )
-                
-                transcribe_status = gr.Textbox(label="Status", interactive=False, lines=1)
-                
-                # Hidden state for audio duration (used by multi-agent)
-                audio_duration_state = gr.State(value=0.0)
+            transcribe_btn = gr.Button("🎤 Transcribe Audio", variant="primary")
+            
+            transcript_json = gr.Textbox(
+                label="Transcript (JSON with word timestamps)",
+                lines=8,
+                interactive=False
+            )
+            
+            transcribe_status = gr.Textbox(label="Status", interactive=False, lines=1)
+            
+            # Hidden state for audio duration (used by multi-agent)
+            audio_duration_state = gr.State(value=0.0)
             
             # === STEP 4: Generate Subtitles ===
-            with gr.Accordion("📝 Step 4: Generate Subtitles", open=True):
-                with gr.Row():
-                    provider_gen = gr.Radio(
-                        choices=[
-                            ("OpenAI (Paid)", "openai"),
-                            ("Groq (FREE)", "groq"),
-                            ("Gemini (FREE - Best)", "gemini")
-                        ],
-                        value="gemini",
-                        label="API Provider",
-                        info="✨ Gemini: 1M tokens/min (Best free tier!)"
-                    )
-                
-                with gr.Row():
-                    subtitle_format = gr.Dropdown(
-                        choices=["SRT", "VTT", "ASS"],
-                        value="SRT",
-                        label="Subtitle Format"
-                    )
-                    
-                    gpt_model_gen = gr.Dropdown(
-                        choices=["gemini-1.5-pro-latest", "gemini-1.5-flash-latest"],
-                        value="gemini-1.5-pro-latest",
-                        label="Model for Generation",
-                        info="Pro model recommended for best subtitle quality"
-                    )
-                
-                with gr.Row():
-                    ultra_mode = gr.Radio(
-                        choices=[
-                            ("Disabled", "disabled"),
-                            ("Basic Pause Handling", "basic"),
-                            ("Word-by-Word", "word_by_word")
-                        ],
-                        value="disabled",
-                        label="Ultra Detailed Mode",
-                        info="Controls subtitle granularity"
-                    )
-                
-                with gr.Row(visible=False) as pause_settings:
-                    pause_threshold = gr.Slider(
-                        minimum=0.5,
-                        maximum=5.0,
-                        value=2.0,
-                        step=0.5,
-                        label="Pause Threshold (seconds)",
-                        info="Create new subtitle after pause of this length"
-                    )
-                
-                with gr.Accordion("⚙️ Advanced Settings", open=True):
-                    with gr.Row():
-                        max_chars = gr.Slider(
-                            minimum=20,
-                            maximum=60,
-                            value=42,
-                            step=1,
-                            label="Max Characters per Line",
-                            info="Standard is 42"
-                        )
-                        
-                        max_lines = gr.Slider(
-                            minimum=1,
-                            maximum=3,
-                            value=2,
-                            step=1,
-                            label="Max Lines per Subtitle",
-                            info="Standard is 2"
-                        )
-                    
-                    with gr.Row():
-                        enable_multiagent = gr.Checkbox(
-                            label="🤖 Enable Multi-Agent Validation",
-                            value=True,
-                            info="Uses 4 specialized agents to verify and correct subtitles. Fast with Groq!"
-                        )
-                        
-                        max_agent_iterations = gr.Slider(
-                            minimum=1,
-                            maximum=10,
-                            value=3,
-                            step=1,
-                            label="Max Agent Iterations",
-                            info="⚠️ Reduce to 3 for Groq free tier (100k tokens/day limit)",
-                            visible=True
-                        )
-                
-                generate_btn = gr.Button("📝 Generate Subtitles", variant="primary", size="lg")
-                
-                subtitles_output = gr.Textbox(
-                    label="Generated Subtitles",
-                    lines=15,
-                    interactive=True
-                )
-                
-                generate_status = gr.Textbox(label="Status", interactive=False, lines=1)
-                
-                validation_log = gr.Textbox(
-                    label="Multi-Agent Validation Log",
-                    lines=12,
-                    interactive=False,
-                    visible=True
+            gr.Markdown("## 📝 Step 4: Generate Subtitles")
+            
+            provider_gen = gr.Radio(
+                choices=[
+                    ("OpenAI (Paid)", "openai"),
+                    ("Groq (FREE)", "groq"),
+                    ("Gemini (FREE - Best)", "gemini")
+                ],
+                value="gemini",
+                label="API Provider",
+                info="✨ Gemini: 1M tokens/min (Best free tier!)"
+            )
+            
+            with gr.Accordion("🔧 Select Format & Model", open=False):
+                subtitle_format = gr.Radio(
+                    choices=["SRT", "VTT", "ASS"],
+                    value="SRT",
+                    label="Subtitle Format"
                 )
                 
                 with gr.Row():
-                    download_btn = gr.DownloadButton("💾 Download Subtitles", variant="secondary")
+                    model_gen_openai = gr.Radio(
+                        choices=["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+                        value="gpt-4o",
+                        label="OpenAI Model",
+                        info="Pro model recommended for best subtitle quality",
+                        visible=False
+                    )
+                    
+                    model_gen_groq = gr.Radio(
+                        choices=["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
+                        value="llama-3.3-70b-versatile",
+                        label="Groq Model",
+                        info="Pro model recommended for best subtitle quality",
+                        visible=False
+                    )
+                    
+                    model_gen_gemini = gr.Radio(
+                        choices=["gemini-2.5-pro", "gemini-2.5-flash", "gemini-3-flash-preview"],
+                        value="gemini-2.5-pro",
+                        label="Gemini Model",
+                        info="Pro model recommended for best subtitle quality",
+                        visible=True
+                    )
+            
+            ultra_mode = gr.Radio(
+                choices=[
+                    ("Disabled", "disabled"),
+                    ("Basic Pause Handling", "basic"),
+                    ("Word-by-Word", "word_by_word")
+                ],
+                value="disabled",
+                label="Ultra Detailed Mode",
+                info="Controls subtitle granularity"
+            )
+            
+            with gr.Row(visible=False) as pause_settings:
+                pause_threshold = gr.Slider(
+                    minimum=0.5,
+                    maximum=5.0,
+                    value=2.0,
+                    step=0.5,
+                    label="Pause Threshold (seconds)",
+                    info="Create new subtitle after pause of this length"
+                )
+            
+            with gr.Accordion("⚙️ Advanced Settings", open=True):
+                with gr.Row():
+                    max_chars = gr.Slider(
+                        minimum=20,
+                        maximum=60,
+                        value=42,
+                        step=1,
+                        label="Max Characters per Line",
+                        info="Standard is 42"
+                    )
+                    
+                    max_lines = gr.Slider(
+                        minimum=1,
+                        maximum=3,
+                        value=2,
+                        step=1,
+                        label="Max Lines per Subtitle",
+                        info="Standard is 2"
+                    )
+                
+                with gr.Row():
+                    validation_mode = gr.Radio(
+                        choices=[
+                            ("⚡ Single Pass (1 API call - fast, saves quota)", "single_pass"),
+                            ("🤖 Multi-Agent Validation (12-16 calls - better quality)", "multi_agent")
+                        ],
+                        value="single_pass",
+                        label="Validation Mode",
+                        info="Single pass recommended for Gemini free tier (20 req/day)"
+                    )
+                    
+                    max_agent_iterations = gr.Slider(
+                        minimum=1,
+                        maximum=10,
+                        value=3,
+                        step=1,
+                        label="Max Agent Iterations",
+                        info="⚠️ Only for multi-agent mode",
+                        visible=False
+                    )
+            
+            generate_btn = gr.Button("📝 Generate Subtitles", variant="primary", size="lg")
+            
+            subtitles_output = gr.Textbox(
+                label="Generated Subtitles",
+                lines=15,
+                interactive=True
+            )
+            
+            generate_status = gr.Textbox(label="Status", interactive=False, lines=1)
+            
+            validation_log = gr.Textbox(
+                label="Multi-Agent Validation Log",
+                lines=12,
+                interactive=False,
+                visible=True
+            )
+            
+            with gr.Row():
+                download_btn = gr.DownloadButton("💾 Download Subtitles", variant="secondary")
             
             # === STEP 5: Preview & Edit ===
-            with gr.Accordion("🎬 Step 5: Preview & Edit Subtitles", open=False):
-                gr.Markdown("""
-                ### Audio Preview with Subtitle Editor
+            gr.Markdown("## 🎬 Step 5: Preview & Edit Subtitles")
+            gr.Markdown("""
+            ### Audio Preview with Subtitle Editor
+            
+            Listen to your audio and edit subtitles in real-time. Click on a subtitle to jump to that timestamp.
+            """)
+            
+            with gr.Row():
+                with gr.Column(scale=1):
+                    preview_audio = gr.Audio(
+                        label="Audio Player",
+                        type="filepath",
+                        interactive=False
+                    )
                 
-                Listen to your audio and edit subtitles in real-time. Click on a subtitle to jump to that timestamp.
-                """)
-                
-                with gr.Row():
-                    with gr.Column(scale=1):
-                        preview_audio = gr.Audio(
-                            label="Audio Player",
-                            type="filepath",
-                            interactive=False
-                        )
+                with gr.Column(scale=2):
+                    gr.Markdown("**Edit Subtitles Below:**")
                     
-                    with gr.Column(scale=2):
-                        gr.Markdown("**Edit Subtitles Below:**")
-                        
-                        subtitle_editor = gr.Dataframe(
-                            headers=["#", "Start Time", "End Time", "Text"],
-                            datatype=["number", "str", "str", "str"],
-                            row_count=20,
-                            col_count=(4, "fixed"),
-                            interactive=True,
-                            wrap=True,
-                            label="Subtitle Editor"
-                        )
-                
-                with gr.Row():
-                    apply_edits_btn = gr.Button("💾 Apply Edits", variant="primary")
-                    refresh_preview_btn = gr.Button("🔄 Refresh from Generated", variant="secondary")
-                
-                edit_status = gr.Textbox(label="Status", interactive=False, lines=1)
+                    subtitle_editor = gr.Dataframe(
+                        headers=["#", "Start Time", "End Time", "Text"],
+                        datatype=["number", "str", "str", "str"],
+                        row_count=20,
+                        col_count=(4, "fixed"),
+                        interactive=True,
+                        wrap=True,
+                        label="Subtitle Editor"
+                    )
+            
+            with gr.Row():
+                apply_edits_btn = gr.Button("💾 Apply Edits", variant="primary")
+                refresh_preview_btn = gr.Button("🔄 Refresh from Generated", variant="secondary")
+            
+            edit_status = gr.Textbox(label="Status", interactive=False, lines=1)
             
             # === Event Handlers ===
             
-            # Update models when provider changes
+            # Update model dropdown visibility when provider changes (avoids gr.update() positioning bug)
+            def toggle_clean_models(provider):
+                return {
+                    model_clean_openai: gr.update(visible=(provider == "openai")),
+                    model_clean_groq: gr.update(visible=(provider == "groq")),
+                    model_clean_gemini: gr.update(visible=(provider == "gemini"))
+                }
+            
             provider_clean.change(
-                fn=lambda p: self.update_models_for_provider(p, "clean"),
+                fn=toggle_clean_models,
                 inputs=[provider_clean],
-                outputs=[gpt_model_clean]
+                outputs=[model_clean_openai, model_clean_groq, model_clean_gemini]
             )
             
+            def toggle_gen_models(provider):
+                return {
+                    model_gen_openai: gr.update(visible=(provider == "openai")),
+                    model_gen_groq: gr.update(visible=(provider == "groq")),
+                    model_gen_gemini: gr.update(visible=(provider == "gemini"))
+                }
+            
             provider_gen.change(
-                fn=lambda p: self.update_models_for_provider(p, "gen"),
+                fn=toggle_gen_models,
                 inputs=[provider_gen],
-                outputs=[gpt_model_gen]
+                outputs=[model_gen_openai, model_gen_groq, model_gen_gemini]
             )
             
             # Show/hide pause threshold based on ultra mode
@@ -917,9 +1194,26 @@ Ultra Detailed Mode: Word-by-Word
             )
             
             # Clean lyrics
+            def clean_with_selected_model(lyrics, is_clean, model_openai, model_groq, model_gemini, provider):
+                """Wrapper to select correct model based on provider"""
+                model_map = {
+                    "openai": model_openai,
+                    "groq": model_groq,
+                    "gemini": model_gemini
+                }
+                selected_model = model_map.get(provider, model_gemini)
+                return self.clean_lyrics(lyrics, is_clean, selected_model, provider)
+            
             clean_btn.click(
-                fn=self.clean_lyrics,
-                inputs=[lyrics_input, is_clean_checkbox, gpt_model_clean, provider_clean],
+                fn=clean_with_selected_model,
+                inputs=[
+                    lyrics_input, 
+                    is_clean_checkbox, 
+                    model_clean_openai, 
+                    model_clean_groq, 
+                    model_clean_gemini, 
+                    provider_clean
+                ],
                 outputs=[cleaned_lyrics, clean_status]
             )
             
@@ -930,27 +1224,53 @@ Ultra Detailed Mode: Word-by-Word
                 outputs=[transcript_json, transcribe_status, audio_duration_state]
             )
             
-            # Show/hide validation log and iterations slider based on multi-agent checkbox
-            enable_multiagent.change(
-                fn=lambda enabled: (gr.update(visible=enabled), gr.update(visible=enabled)),
-                inputs=[enable_multiagent],
+            # Show/hide validation log and iterations slider based on validation mode
+            validation_mode.change(
+                fn=lambda mode: (
+                    gr.update(visible=mode == "multi_agent"),
+                    gr.update(visible=mode == "multi_agent")
+                ),
+                inputs=[validation_mode],
                 outputs=[validation_log, max_agent_iterations]
             )
             
             # Generate subtitles
+            def generate_with_selected_model(
+                transcript_json, cleaned_lyrics, 
+                model_openai, model_groq, model_gemini,
+                subtitle_format, ultra_mode, pause_threshold,
+                max_chars, max_lines, provider,
+                validation_mode, audio_duration_state, max_agent_iterations
+            ):
+                """Wrapper to select correct model based on provider"""
+                model_map = {
+                    "openai": model_openai,
+                    "groq": model_groq,
+                    "gemini": model_gemini
+                }
+                selected_model = model_map.get(provider, model_gemini)
+                return self.generate_subtitles(
+                    transcript_json, cleaned_lyrics, selected_model,
+                    subtitle_format, ultra_mode, pause_threshold,
+                    max_chars, max_lines, provider,
+                    validation_mode, audio_duration_state, max_agent_iterations
+                )
+            
             generate_btn.click(
-                fn=self.generate_subtitles,
+                fn=generate_with_selected_model,
                 inputs=[
                     transcript_json,
                     cleaned_lyrics,
-                    gpt_model_gen,
+                    model_gen_openai,
+                    model_gen_groq,
+                    model_gen_gemini,
                     subtitle_format,
                     ultra_mode,
                     pause_threshold,
                     max_chars,
                     max_lines,
                     provider_gen,
-                    enable_multiagent,
+                    validation_mode,
                     audio_duration_state,
                     max_agent_iterations
                 ],

@@ -1838,13 +1838,14 @@ class LipSyncTab:
             
             with gr.Row():
                 with gr.Column():
-                    # Model selection
-                    model_dropdown = gr.Dropdown(
-                        choices=list(LIPSYNC_MODELS.keys()),
-                        value='wav2lip_gan',
-                        label=self._t('lipsync.model'),
-                        info=self._t('lipsync.select_model')
-                    )
+                    # Model selection in collapsible accordion
+                    with gr.Accordion(self._t('lipsync.select_model') or "🔧 Select Model", open=False):
+                        model_dropdown = gr.Radio(
+                            choices=list(LIPSYNC_MODELS.keys()),
+                            value='wav2lip_gan',
+                            label=self._t('lipsync.model'),
+                            info=self._t('lipsync.select_model')
+                        )
                     
                     # Model info display
                     model_info = gr.HTML(

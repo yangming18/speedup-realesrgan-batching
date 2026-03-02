@@ -346,21 +346,21 @@ class UpscalerTab:
             
             with gr.Row():
                 with gr.Column(scale=1):
-                    # Model selection
-                    model_dropdown = gr.Dropdown(
-                        choices=list(MODELS.keys()),
-                        value="RealESRGAN_x4plus",
-                        label="Select Model",
-                        info="Choose the upscaling model"
-                    )
-                    
-                    # Device selection
-                    device_dropdown = gr.Dropdown(
-                        choices=self.device_manager.get_available_devices(),
-                        value=self.device_manager.current_device,
-                        label="Compute Device",
-                        info="Select processing device"
-                    )
+                    # Model and device selection in collapsible accordion
+                    with gr.Accordion("🔧 Select Model & Device", open=False):
+                        model_dropdown = gr.Radio(
+                            choices=list(MODELS.keys()),
+                            value="RealESRGAN_x4plus",
+                            label="Select Model",
+                            info="Choose the upscaling model"
+                        )
+                        
+                        device_dropdown = gr.Radio(
+                            choices=self.device_manager.get_available_devices(),
+                            value=self.device_manager.current_device,
+                            label="Compute Device",
+                            info="Select processing device"
+                        )
                     
                     # Model info
                     model_info = gr.Textbox(

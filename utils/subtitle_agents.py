@@ -30,6 +30,106 @@ class SubtitleAgentSystem:
         self.helper = helper
         self.model = model
         self.max_iterations = max_iterations
+        self.progress_callback = None  # Will be set during validation
+        self.conversation_history = []  # Track conversation for summarization
+    
+    def _summarize_history(self, full_prompt: str, preserve_data: bool = True) -> str:
+        """
+        Riassume prompt lunghi preservando dati essenziali.
+        
+        Args:
+            full_prompt: Prompt completo
+            preserve_data: Se True, preserva subtitle text, lyrics, whisper data
+        
+        Returns:
+            Prompt riassunto (o originale se già corto)
+        """
+        # Se il prompt è già corto, non riassumere
+        if len(full_prompt) < 2000:
+            return full_prompt
+        
+        # Se c'è poco storico, non serve riassumere
+        if len(self.conversation_history) < 3:
+            return full_prompt
+        
+        # Se preserve_data=True, identifica e preserva sezioni di dati
+        if preserve_data:
+            # Pattern per identificare dati da preservare (non riassumere)
+            data_markers = [
+                "Subtitles (first", "Subtitle Text", "Lyrics Reference", 
+                "Whisper", "ORIGINAL SUBTITLES:", "GROUND TRUTH LYRICS:"
+            ]
+            
+            # Controlla se il prompt contiene dati da preservare
+            has_critical_data = any(marker in full_prompt for marker in data_markers)
+            
+            if has_critical_data:
+                # NON riassumere prompt con dati critici (lyrics, subtitles, whisper)
+                return full_prompt
+        
+        # Riassumi le istruzioni/regole ma mantieni la struttura
+        try:
+            summary_prompt = f"""Summarize these instructions keeping only essential information:
+
+{full_prompt[:1500]}
+
+Summary (max 300 chars, preserve key numbers/requirements):"""
+            
+            summary = self.helper.call_gpt(
+                messages=[{"role": "user", "content": summary_prompt}],
+                model=self.model,
+                temperature=0.3,
+                max_tokens=300,
+                max_retries=1  # Quick summary, don't retry much
+            )
+            
+            if summary and len(summary) < len(full_prompt) * 0.7:
+                return summary.strip()
+        except Exception as e:
+            logger.warning(f"Summary failed, using full prompt: {e}")
+        
+        # Fallback: restituisci originale
+        return full_prompt
+    
+    def _call_agent_gpt(
+        self, 
+        prompt: str, 
+        temperature: float = 0.1, 
+        max_tokens: int = 150,
+        preserve_data: bool = True
+    ) -> Optional[str]:
+        """
+        Call GPT with automatic history tracking and summarization.
+        
+        Args:
+            prompt: Full prompt
+            temperature: Sampling temperature
+            max_tokens: Max tokens to generate
+            preserve_data: If True, don't summarize prompts with subtitle/lyrics data
+        
+        Returns:
+            Model response
+        """
+        # Track this prompt in history
+        self.conversation_history.append(("user", prompt))
+        
+        # Summarize if needed (but preserve critical data)
+        summarized_prompt = self._summarize_history(prompt, preserve_data)
+        
+        # Call GPT
+        response = self.helper.call_gpt(
+            messages=[{"role": "user", "content": summarized_prompt}],
+            model=self.model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            progress_callback=self.progress_callback
+        )
+        
+        # Track response
+        if response:
+            self.conversation_history.append(("assistant", response))
+        
+        return response
         
     def validate_and_correct_subtitles(
         self,
@@ -58,6 +158,12 @@ class SubtitleAgentSystem:
         """
         validation_log = []
         current_subtitles = subtitles
+        
+        # Store progress callback for use in agent methods  
+        self.progress_callback = progress_callback
+        
+        # Reset conversation history for this validation run
+        self.conversation_history = []
         
         # Stats for context
         word_count = len(lyrics.split())
@@ -94,24 +200,32 @@ class SubtitleAgentSystem:
             # Agent 1: Timing Validator
             validation_log.append(f"\n🤖 Agent 1: Timing Validator")
             validation_log.append(f"{'─'*50}")
+            if progress_callback:
+                progress_callback((iteration - 0.75) / self.max_iterations, "🔍 Agent 1: Checking timing...")
             timing_issues = self._agent_timing_validator(current_subtitles, agent_context, validation_log)
             validation_log.append(f"📊 Result: {timing_issues}\n")
             
             # Agent 2: Lyrics Matcher
             validation_log.append(f"🤖 Agent 2: Lyrics Matcher")
             validation_log.append(f"{'─'*50}")
-            lyrics_issues = self._agent_lyrics_matcher(current_subtitles, lyrics, whisper_data, validation_log)
+            if progress_callback:
+                progress_callback((iteration - 0.5) / self.max_iterations, "🎵 Agent 2: Matching lyrics...")
+            lyrics_issues = self._agent_lyrics_matcher(current_subtitles, lyrics, whisper_data, agent_context, validation_log)
             validation_log.append(f"📊 Result: {lyrics_issues}\n")
             
             # Agent 3: Format Validator
             validation_log.append(f"🤖 Agent 3: Format Validator")
             validation_log.append(f"{'─'*50}")
+            if progress_callback:
+                progress_callback((iteration - 0.25) / self.max_iterations, "📝 Agent 3: Validating format...")
             format_issues = self._agent_format_validator(current_subtitles, subtitle_format, agent_context, validation_log)
             validation_log.append(f"📊 Result: {format_issues}\n")
             
             # Coordinator decides if corrections are needed
             validation_log.append(f"🤖 Coordinator: Decision Agent")
             validation_log.append(f"{'─'*50}")
+            if progress_callback:
+                progress_callback(iteration / self.max_iterations, "🧠 Coordinator: Analyzing results...")
             needs_correction, coordinator_feedback = self._agent_coordinator(
                 timing_issues,
                 lyrics_issues,
@@ -129,6 +243,8 @@ class SubtitleAgentSystem:
             if iteration < self.max_iterations:
                 validation_log.append(f"🤖 Agent 4: Text Corrector")
                 validation_log.append(f"{'─'*50}")
+                if progress_callback:
+                    progress_callback(iteration / self.max_iterations, "⚙️ Agent 4: Applying corrections...")
                 
                 corrected = self._agent_text_corrector(
                     current_subtitles,
@@ -191,12 +307,7 @@ Return ONLY a brief summary (max 2 lines):
         log.append(f"💬 Prompt: Analyze timing for {content_type} ({audio_duration:.1f}s, {ultra_mode} mode)")
         
         try:
-            response = self.helper.call_gpt(
-                messages=[{"role": "user", "content": prompt}],
-                model=self.model,
-                temperature=0.1,
-                max_tokens=150
-            )
+            response = self._call_agent_gpt(prompt, temperature=0.1, max_tokens=150, preserve_data=False)
             result = response.strip() if response else "Agent error"
             log.append(f"💡 Response: {result}")
             return result
@@ -206,14 +317,39 @@ Return ONLY a brief summary (max 2 lines):
             log.append(f"❌ Error: {error_msg}")
             return error_msg
     
-    def _agent_lyrics_matcher(self, subtitles: str, lyrics: str, whisper_data: List[Dict], log: List[str]) -> str:
+    def _agent_lyrics_matcher(self, subtitles: str, lyrics: str, whisper_data: List[Dict], context: Dict, log: List[str]) -> str:
         """Agent 2: Match subtitle text with lyrics"""
         # Extract text from subtitles (parse SRT format)
         subtitle_words = self._extract_subtitle_text(subtitles)
         lyrics_words = lyrics.lower().split()
         whisper_words = [w['word'].lower().strip() for w in whisper_data]
         
-        prompt = f"""You are a lyrics matching expert. Compare subtitle text with ground truth lyrics.
+        # Check if we're in word-by-word mode from context (explicit flag)
+        is_word_by_word = context.get('subtitle_mode') == 'word_by_word' or context.get('ultra_detailed_mode') == 'word_by_word'
+        
+        if is_word_by_word:
+            # Word-by-word mode: EVERY word must be present
+            missing = len(whisper_words) - len(subtitle_words)
+            
+            if len(subtitle_words) == len(whisper_words):
+                status = f"OK - All {len(whisper_words)} words present ✓"
+            else:
+                status = f"CRITICAL: {missing} words missing! Expected {len(whisper_words)}, got {len(subtitle_words)}"
+            
+            prompt = f"""🎯 WORD-BY-WORD MODE: Critical completeness check!
+
+Expected: {len(whisper_words)} subtitles (one per word)
+Generated: {len(subtitle_words)} subtitles
+Status: {status}
+
+⚠️  In word-by-word mode, subtitle count MUST equal whisper word count.
+
+Return ONLY:
+- "OK - All {len(whisper_words)} words present" if counts match
+- "CRITICAL: Missing {missing} words - regenerate all {len(whisper_words)} words" if not matching"""
+        else:
+            # Standard mode: compare with lyrics
+            prompt = f"""You are a lyrics matching expert. Compare subtitle text with ground truth lyrics.
 
 Subtitle Text (first 100 words): {' '.join(subtitle_words[:100])}
 Lyrics Reference (first 100 words): {' '.join(lyrics_words[:100])}
@@ -233,12 +369,7 @@ Return ONLY a brief summary (max 2 lines):
         log.append(f"💬 Prompt: Compare subtitle text ({len(subtitle_words)} words) with lyrics ({len(lyrics_words)} words)")
         
         try:
-            response = self.helper.call_gpt(
-                messages=[{"role": "user", "content": prompt}],
-                model=self.model,
-                temperature=0.1,
-                max_tokens=150
-            )
+            response = self._call_agent_gpt(prompt, temperature=0.1, max_tokens=150, preserve_data=True)
             result = response.strip() if response else "Agent error"
             log.append(f"💡 Response: {result}")
             return result
@@ -256,17 +387,32 @@ Return ONLY a brief summary (max 2 lines):
         max_lines = context.get('max_lines_per_subtitle', 2)
         ultra_mode = context.get('ultra_detailed_mode', 'disabled')
         
-        # Mode-specific format notes
+        # Word-by-word mode: different validation logic
         if ultra_mode == 'word_by_word':
-            mode_note = "\n⚠️  Mode: Word-by-word (1 word per subtitle is CORRECT)"
+            prompt = f"""🎯 WORD-BY-WORD MODE: Format validation
+
+Subtitles (first 500 chars):
+{subtitles[:500]}
+
+Check {format_type} compliance for WORD-BY-WORD mode:
+1. Correct structure (index, timing, text, blank line)
+2. Valid timestamp format
+3. ⚠️  CRITICAL: Each subtitle should contain EXACTLY 1 word (not a phrase)
+4. Proper blank line separation
+
+ℹ️  IGNORE character/line limits (they don't apply in word-by-word mode)
+
+Return ONLY:
+- "OK - Format valid" if correct for word-by-word
+- Or list specific format issues (e.g., "Multi-word subtitles detected")"""
+            log.append(f"💬 Prompt: Validate {format_type} format (word-by-word mode - ignore char/line limits)")
         else:
-            mode_note = ""
-        
-        prompt = f"""You are a subtitle format expert. Validate this {format_type} format.
+            # Standard modes: validate char/line limits
+            prompt = f"""You are a subtitle format expert. Validate this {format_type} format.
 
 USER SETTINGS:
 - Max {max_chars} characters per line
-- Max {max_lines} lines per subtitle{mode_note}
+- Max {max_lines} lines per subtitle
 
 Subtitles (first 500 chars):
 {subtitles[:500]}
@@ -281,16 +427,10 @@ Check {format_type} compliance:
 Return ONLY a brief summary (max 2 lines):
 - "OK - Format valid" if correct
 - Or list specific format issues"""
-        
-        log.append(f"💬 Prompt: Validate {format_type} format (max {max_chars} chars/line, {max_lines} lines, {ultra_mode} mode)")
+            log.append(f"💬 Prompt: Validate {format_type} format (max {max_chars} chars/line, {max_lines} lines, {ultra_mode} mode)")
         
         try:
-            response = self.helper.call_gpt(
-                messages=[{"role": "user", "content": prompt}],
-                model=self.model,
-                temperature=0.1,
-                max_tokens=150
-            )
+            response = self._call_agent_gpt(prompt, temperature=0.1, max_tokens=150, preserve_data=True)
             result = response.strip() if response else "Agent error"
             log.append(f"💡 Response: {result}")
             return result
@@ -349,6 +489,7 @@ Return ONLY a brief summary (max 2 lines):
         ultra_mode = context.get('ultra_detailed_mode', 'disabled')
         max_chars = context.get('max_chars_per_line', 42)
         max_lines = context.get('max_lines_per_subtitle', 2)
+        is_word_by_word = ultra_mode == 'word_by_word'
         
         # Content-specific instructions
         if content_type == 'song':
@@ -357,19 +498,53 @@ Return ONLY a brief summary (max 2 lines):
             content_note = ""
         
         # Mode-specific instructions
-        if ultra_mode == 'word_by_word':
-            mode_note = "\n⚠️  Mode: Word-by-word (each subtitle should contain ONE word with precise timing)"
+        if is_word_by_word:
+            whisper_word_count = len(whisper_data)
+            mode_note = f"""
+⚠️  WORD-BY-WORD MODE (KARAOKE):
+
+🚨 CRITICAL REQUIREMENT: Generate EXACTLY {whisper_word_count} subtitles (one per word)
+
+RULES:
+1. ONE subtitle = ONE word (no grouping)
+2. Use EXACT Whisper timestamps for each word
+3. DO NOT skip any word from the Whisper array
+4. If text is wrong, fix it using lyrics BUT keep the word
+5. Output ALL {whisper_word_count} words as separate subtitles
+
+If feedback says "Missing X words":
+→ YOU MUST regenerate ALL {whisper_word_count} subtitles
+→ Use the Whisper word array below as your source
+→ Every word in array = one subtitle in output"""
         else:
             mode_note = "\n📝 Mode: Standard (group words naturally into readable phrases)"
+        
+        # User settings section (only for standard modes)
+        if is_word_by_word:
+            settings_note = ""
+            correction_rules = f"""CORRECTION RULES:
+1. Use Whisper timestamps exactly as given
+2. Fix text to match lyrics (check spelling/transcription errors)
+3. Generate ONE subtitle per word
+4. Output EXACTLY {len(whisper_data)} subtitles
+5. DO NOT skip, merge, or group words"""
+        else:
+            settings_note = f"""
+USER SETTINGS:
+- Max {max_chars} characters per line
+- Max {max_lines} lines per subtitle"""
+            correction_rules = f"""CORRECTION RULES:
+1. Keep Whisper timestamps unless clearly wrong
+2. Fix text to match lyrics exactly
+3. Maintain subtitle format
+4. Fix any timing overlaps (but respect intentional gaps for {content_type})
+5. Ensure max {max_chars} chars/line, max {max_lines} lines
+6. Respect {ultra_mode} mode requirements"""
         
         # Build correction prompt
         prompt = f"""You are an expert subtitle corrector. Fix the subtitles based on validation feedback.
 
-CONTENT TYPE: {content_type.upper()}{content_note}{mode_note}
-
-USER SETTINGS:
-- Max {max_chars} characters per line
-- Max {max_lines} lines per subtitle
+CONTENT TYPE: {content_type.upper()}{content_note}{mode_note}{settings_note}
 
 ORIGINAL SUBTITLES:
 {subtitles[:3000]}
@@ -385,25 +560,14 @@ VALIDATION FEEDBACK:
 WHISPER DATA (first 50 words):
 {json.dumps(whisper_data[:50], indent=2)}
 
-CORRECTION RULES:
-1. Keep Whisper timestamps unless clearly wrong
-2. Fix text to match lyrics exactly
-3. Maintain subtitle format
-4. Fix any timing overlaps (but respect intentional gaps for {content_type})
-5. Ensure max {max_chars} chars/line, max {max_lines} lines
-6. Respect {ultra_mode} mode requirements
+{correction_rules}
 
 Return the COMPLETE corrected subtitles in proper format. Output ONLY the subtitles, no explanations."""
         
         log.append(f"💬 Prompt: Apply corrections for {content_type} ({ultra_mode} mode, max {max_chars} chars/line, {max_lines} lines)")
         
         try:
-            response = self.helper.call_gpt(
-                messages=[{"role": "user", "content": prompt}],
-                model=self.model,
-                temperature=0.2,
-                max_tokens=8000
-            )
+            response = self._call_agent_gpt(prompt, temperature=0.2, max_tokens=8000, preserve_data=True)
             result = response.strip() if response else subtitles
             changes = "Applied" if result != subtitles else "No changes"
             log.append(f"💡 Response: {changes} - {len(result)} chars output")
