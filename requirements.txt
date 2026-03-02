@@ -1,6 +1,7 @@
 # Core dependencies
 gradio>=4.0.0
 python-dotenv>=1.0.0
+cryptography==46.0.5  # Required by api_key_manager for secure key storage
 
 # Image/Video Processing
 opencv-python==4.9.0.80
@@ -52,5 +53,4 @@ pytest-cov>=4.1.0
 # Subtitles generation
 faster-whisper>=1.0.0  # Faster than openai-whisper, less VRAM
 openai>=1.0.0  # For GPT API and model listing
-cryptography>=41.0.0  # For secure API key encryption
 pytest-mock>=3.11.0
