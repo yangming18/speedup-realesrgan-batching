@@ -21,6 +21,7 @@ from utils.temp_manager import TempManager
 from utils.device_manager import DeviceManager
 from utils.i18n import get_i18n
 from tabs.upscaler_tab import UpscalerTab
+from tabs.face_enhance_tab import FaceEnhanceTab
 from tabs.lipsync_tab import LipSyncTab
 from tabs.subtitles_tab import SubtitlesTab
 from tabs.settings_tab import SettingsTab
@@ -44,6 +45,7 @@ class VideoEditorApp:
         
         # Initialize tabs
         self.upscaler_tab = UpscalerTab(self.temp_manager, self.device_manager)
+        self.face_enhance_tab = FaceEnhanceTab(self.temp_manager, self.device_manager, self.i18n)
         self.lipsync_tab = LipSyncTab(self.temp_manager, self.device_manager, self.i18n)
         self.subtitles_tab = SubtitlesTab(self.i18n)
         self.settings_tab = SettingsTab(self.i18n, on_language_change=self.on_language_change)
@@ -107,6 +109,7 @@ class VideoEditorApp:
             
             # Main Tabs
             self.upscaler_tab.create_tab()
+            self.face_enhance_tab.create_tab()
             self.lipsync_tab.create_tab()
             self.subtitles_tab.create_tab()
             self.settings_tab.create_tab()

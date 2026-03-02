@@ -7,6 +7,7 @@
   },
   "tabs": {
     "upscaler": "🎨 Upscaler",
+    "face_enhance": "✨ AI Enhancement",
     "lipsync": "👄 Lip Sync",
     "settings": "⚙️ Settings",
     "support": "❤️ Support"
@@ -30,6 +31,34 @@
     "processing": "Processing...",
     "error_no_input": "⚠️ Please upload an image or video",
     "success": "✅ Upscaling completed successfully!"
+  },
+  "face_enhance": {
+    "title": "AI Enhancement (NO Upscaling)",
+    "description": "Enhance image and video details WITHOUT upscaling using advanced AI algorithms",
+    "input_type": "Input Type",
+    "input_type_info": "Select whether to process an image or video",
+    "image": "Image",
+    "video": "Video",
+    "upload_image": "📁 Upload Image",
+    "upload_video": "📹 Upload Video",
+    "model": "🤖 AI Model",
+    "model_info": "Select the enhancement model to apply",
+    "device": "💻 Device",
+    "device_info": "Select device for processing",
+    "process_button": "🚀 Enhance Details",
+    "output_image": "📸 Enhanced Image",
+    "output_video": "📹 Enhanced Video",
+    "info": "ℹ️ Info",
+    "loading_model": "Loading model...",
+    "processing": "Processing...",
+    "applying": "Applying enhancement...",
+    "finalizing": "Finalizing...",
+    "reading_video": "Reading video...",
+    "error_no_input": "⚠️ Please upload an image or video",
+    "success": "Enhancement completed successfully using {model}!",
+    "error": "Error during enhancement",
+    "tips_title": "💡 Tips",
+    "tips_content": "- **Classic Sharpen**: Quick and light sharpening, ideal for general improvements\n- **Edge Enhancement**: Accentuates edges and fine details\n- **Denoise Medium**: Reduces noise while preserving details\n- **Denoise Strong**: Aggressive noise removal for very noisy videos\n- **GFPGAN Face Restore**: Specialized AI for restoring face details (requires GPU)\n\n⚠️ AI models are downloaded automatically on first use."
   },
   "lipsync": {
     "title": "AI Lip Sync",

@@ -7,6 +7,7 @@
   },
   "tabs": {
     "upscaler": "🎨 Upscaler",
+    "face_enhance": "✨ AI Enhancement",
     "lipsync": "👄 Lip Sync",
     "settings": "⚙️ Impostazioni",
     "support": "❤️ Supporto"
@@ -30,6 +31,34 @@
     "processing": "Elaborazione in corso...",
     "error_no_input": "⚠️ Per favore carica un'immagine o un video",
     "success": "✅ Upscaling completato con successo!"
+  },
+  "face_enhance": {
+    "title": "AI Enhancement (NO Upscaling)",
+    "description": "Migliora i dettagli di immagini e video SENZA upscaling usando algoritmi AI avanzati",
+    "input_type": "Tipo Input",
+    "input_type_info": "Seleziona se elaborare un'immagine o un video",
+    "image": "Immagine",
+    "video": "Video",
+    "upload_image": "📁 Carica Immagine",
+    "upload_video": "📹 Carica Video",
+    "model": "🤖 Modello AI",
+    "model_info": "Seleziona il modello di enhancement da applicare",
+    "device": "💻 Dispositivo",
+    "device_info": "Seleziona il dispositivo per l'elaborazione",
+    "process_button": "🚀 Migliora Dettagli",
+    "output_image": "📸 Immagine Migliorata",
+    "output_video": "📹 Video Migliorato",
+    "info": "ℹ️ Info",
+    "loading_model": "Caricamento modello...",
+    "processing": "Elaborazione in corso...",
+    "applying": "Applicazione enhancement...",
+    "finalizing": "Finalizzazione...",
+    "reading_video": "Lettura video...",
+    "error_no_input": "⚠️ Per favore carica un'immagine o un video",
+    "success": "Enhancement completato con successo usando {model}!",
+    "error": "Errore durante l'enhancement",
+    "tips_title": "💡 Suggerimenti",
+    "tips_content": "- **Classic Sharpen**: Nitidezza rapida e leggera, ideale per miglioramenti generali\n- **Edge Enhancement**: Accentua i contorni e i dettagli fini\n- **Denoise Medium**: Riduce il rumore preservando i dettagli\n- **Denoise Strong**: Rimozione aggressiva del rumore per video molto rumorosi\n- **GFPGAN Face Restore**: AI specializzato per ripristinare i dettagli del viso (richiede GPU)\n\n⚠️ I modelli AI vengono scaricati automaticamente al primo utilizzo."
   },
   "lipsync": {
     "title": "AI Lip Sync",
