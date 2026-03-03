@@ -402,11 +402,8 @@ Your task:
 
 Output ONLY the {subtitle_format} formatted subtitles, nothing else."""
 
-            # Truncate lyrics if too long (word-by-word doesn't need full context)
-            if ultra_mode == "word_by_word" and len(cleaned_lyrics) > 1500:
-                lyrics_preview = cleaned_lyrics[:1500] + "\n[...lyrics truncated for space...]"
-            else:
-                lyrics_preview = cleaned_lyrics
+            # Use full lyrics - no truncation
+            lyrics_preview = cleaned_lyrics
             
             user_prompt = f"""Reference Lyrics:
 {lyrics_preview}
@@ -447,8 +444,8 @@ Do not stop until complete."""
             if not subtitles:
                 return "", f"❌ {provider_label} API call failed - no response received", ""
             
-            # COMPLETENESS CHECK for word-by-word mode
-            if ultra_mode == "word_by_word":
+            # COMPLETENESS CHECK for word-by-word mode (ONLY in multi_agent mode to save quota)
+            if ultra_mode == "word_by_word" and validation_mode == "multi_agent":
                 subtitle_count = subtitles.count('\n\n') + 1  # Count subtitle blocks
                 expected_count = len(source_data)
                 
@@ -490,6 +487,13 @@ Start with index {start_idx + 1}, use exact Whisper timestamps."""
                         # Append missing subtitles
                         subtitles = subtitles.rstrip() + "\n\n" + completion.strip()
                         progress(0.7, f"✓ Completed: Now have {subtitle_count + completion.count(chr(10)+chr(10)) + 1} subtitles")
+            elif ultra_mode == "word_by_word" and validation_mode == "single_pass":
+                # In single_pass mode, just count and warn if incomplete (don't make extra API calls)
+                subtitle_count = subtitles.count('\n\n') + 1  # Count subtitle blocks
+                expected_count = len(source_data)
+                if subtitle_count < expected_count:
+                    logger.warning(f"⚠️ Single Pass: Generated {subtitle_count}/{expected_count} subtitles (incomplete)")
+                    progress(0.6, f"⚠️ Generated {subtitle_count}/{expected_count} subtitles. Use Multi-Agent for auto-completion.")
             
             validation_log = ""
             

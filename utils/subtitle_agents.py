@@ -290,8 +290,8 @@ CONTENT TYPE: {content_type.upper()}
 Audio Duration: {audio_duration:.1f}s
 Mode: {ultra_mode}
 
-Subtitles (first 2000 chars):
-{subtitles[:2000]}
+Subtitles:
+{subtitles}
 
 Check for:
 1. Overlapping timestamps
@@ -351,8 +351,8 @@ Return ONLY:
             # Standard mode: compare with lyrics
             prompt = f"""You are a lyrics matching expert. Compare subtitle text with ground truth lyrics.
 
-Subtitle Text (first 100 words): {' '.join(subtitle_words[:100])}
-Lyrics Reference (first 100 words): {' '.join(lyrics_words[:100])}
+Subtitle Text: {' '.join(subtitle_words)}
+Lyrics Reference: {' '.join(lyrics_words)}
 
 Total words: Subtitles={len(subtitle_words)}, Lyrics={len(lyrics_words)}, Whisper={len(whisper_words)}
 
@@ -391,8 +391,8 @@ Return ONLY a brief summary (max 2 lines):
         if ultra_mode == 'word_by_word':
             prompt = f"""🎯 WORD-BY-WORD MODE: Format validation
 
-Subtitles (first 500 chars):
-{subtitles[:500]}
+Subtitles:
+{subtitles}
 
 Check {format_type} compliance for WORD-BY-WORD mode:
 1. Correct structure (index, timing, text, blank line)
@@ -414,8 +414,8 @@ USER SETTINGS:
 - Max {max_chars} characters per line
 - Max {max_lines} lines per subtitle
 
-Subtitles (first 500 chars):
-{subtitles[:500]}
+Subtitles:
+{subtitles}
 
 Check {format_type} compliance:
 - Correct structure (index, timing, text, blank line)
@@ -547,18 +547,18 @@ USER SETTINGS:
 CONTENT TYPE: {content_type.upper()}{content_note}{mode_note}{settings_note}
 
 ORIGINAL SUBTITLES:
-{subtitles[:3000]}
+{subtitles}
 
 GROUND TRUTH LYRICS:
-{lyrics[:1000]}
+{lyrics}
 
 VALIDATION FEEDBACK:
 - Timing: {timing_issues}
 - Lyrics Match: {lyrics_issues}
 - Format: {format_issues}
 
-WHISPER DATA (first 50 words):
-{json.dumps(whisper_data[:50], indent=2)}
+WHISPER DATA:
+{json.dumps(whisper_data, indent=2)}
 
 {correction_rules}
 
