@@ -5,8 +5,9 @@ cryptography==46.0.5  # Required by api_key_manager for secure key storage
 
 # Image/Video Processing
 opencv-python==4.9.0.80
-Pillow>=10.0.0
-numpy<2
+opencv-python-headless>=4.9.0.80  # Required by albumentations
+Pillow>=10.0.0,<12.0  # moviepy compatibility
+numpy>=1.24.4,<2  # Strict version for all packages
 ffmpeg-python>=0.2.0
 
 # AI Models (fixed versions for compatibility)
@@ -54,3 +55,15 @@ pytest-cov>=4.1.0
 faster-whisper>=1.0.0  # Faster than openai-whisper, less VRAM
 openai>=1.0.0  # For GPT API and model listing
 pytest-mock>=3.11.0
+
+# AI Background Removal
+# Note: rembg has some dependency conflicts that are auto-fixed at setup/startup
+# The app applies a compatibility patch automatically (see utils/dependency_patch.py)
+rembg==2.0.72  # AI background removal
+pymatting==1.1.15  # Required by rembg
+
+# AI Image to Video
+diffusers==0.30.3  # Stable Video Diffusion
+accelerate==0.34.2  # Required for diffusers optimization
+transformers==4.44.2  # Compatible with diffusers 0.30.3 (has FLAX_WEIGHTS_NAME)
+soxr>=0.3.0  # Required by transformers for audio processing

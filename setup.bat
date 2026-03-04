@@ -35,6 +35,11 @@ echo Installing dependencies...
 echo This may take several minutes...
 pip install -r requirements.txt
 
+REM Fix dependency conflicts automatically
+echo.
+echo Checking and fixing dependency conflicts...
+python -c "from utils.dependency_patch import fix_dependencies; fix_dependencies(verbose=True)" 2>nul || echo Warning: Could not run dependency patch (will run at startup)
+
 echo.
 echo ================================================
 echo Complete Setup Finished!

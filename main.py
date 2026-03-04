@@ -15,6 +15,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 from utils.opencv_patch import apply_opencv_patch
 apply_opencv_patch()
 
+# Apply dependency compatibility patch
+from utils.dependency_patch import apply_dependency_patch
+apply_dependency_patch(silent=True)
+
 # Import modules
 from config.config import ensure_directories
 from utils.temp_manager import TempManager
@@ -24,6 +28,8 @@ from tabs.upscaler_tab import UpscalerTab
 from tabs.face_enhance_tab import FaceEnhanceTab
 from tabs.lipsync_tab import LipSyncTab
 from tabs.subtitles_tab import SubtitlesTab
+from tabs.background_remover_tab import BackgroundRemoverTab
+from tabs.img_to_video_tab import ImgToVideoTab
 from tabs.settings_tab import SettingsTab
 from tabs.support_tab import SupportTab
 from theme.custom_theme import CustomTheme, create_custom_css
@@ -48,6 +54,8 @@ class VideoEditorApp:
         self.face_enhance_tab = FaceEnhanceTab(self.temp_manager, self.device_manager, self.i18n)
         self.lipsync_tab = LipSyncTab(self.temp_manager, self.device_manager, self.i18n)
         self.subtitles_tab = SubtitlesTab(self.i18n)
+        self.background_remover_tab = BackgroundRemoverTab(self.i18n)
+        self.img_to_video_tab = ImgToVideoTab(self.i18n)
         self.settings_tab = SettingsTab(self.i18n, on_language_change=self.on_language_change)
         self.support_tab = SupportTab()
     
@@ -112,6 +120,8 @@ class VideoEditorApp:
             self.face_enhance_tab.create_tab()
             self.lipsync_tab.create_tab()
             self.subtitles_tab.create_tab()
+            self.background_remover_tab.create_tab()
+            self.img_to_video_tab.create_tab()
             self.settings_tab.create_tab()
             
             # Support tab at the end

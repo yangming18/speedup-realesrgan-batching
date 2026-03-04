@@ -40,6 +40,11 @@ echo "📦 Step 5/6: Installing all requirements..."
 pip install -r requirements.txt
 echo "✅ All requirements installed"
 
+echo "📦 Step 5.5/6: Fixing dependency conflicts..."
+# Fix conflicts automatically
+python -c "from utils.dependency_patch import fix_dependencies; fix_dependencies(verbose=True)" || echo "⚠️  Could not run dependency patch (will run at startup)"
+echo "✅ Dependencies fixed"
+
 echo "📦 Step 6/6: Installing subtitle generation tools..."
 # These might need special handling
 pip install faster-whisper>=1.0.0

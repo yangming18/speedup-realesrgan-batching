@@ -37,6 +37,10 @@ print("📦 Installing cryptography (critical dependency)...")
 # 9️⃣ Install subtitle generation tools
 !/content/py311/bin/pip install --no-cache-dir faster-whisper openai
 
+# 9️⃣.5️⃣ Fix dependency conflicts automatically
+print("🔧 Fixing dependency conflicts...")
+!/content/py311/bin/python -c "from utils.dependency_patch import fix_dependencies; fix_dependencies(verbose=True)"
+
 # 🔟 Fix Matplotlib backend for Gradio/server usage (prevents matplotlib_inline errors)
 %env MPLBACKEND=Agg
 %env MATPLOTLIBRC=/tmp/matplotlibrc
