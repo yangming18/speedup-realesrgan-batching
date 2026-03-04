@@ -352,6 +352,12 @@ This project is built with amazing open source technologies:
 
 Special thanks to all contributors and maintainers of these projects!
 
+## 📧 Contact
+
+For issues, suggestions, or questions, feel free to contact me at:
+
+**📬 thegargantuamusic@gmail.com**
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
