@@ -23,9 +23,9 @@ Don't have a powerful PC? No problem! Run the app directly on Google Colab with 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1dQScY7ALgOOIsfAdNCfZMxrfcSM5EPJK?usp=sharing)
 
 > **📚 Complete Setup Guide**: 
-> - **Quick Copy-Paste Script**: [colab_notebook_setup.py](colab_notebook_setup.py) - Copy entire content to a Colab cell
-> - **Detailed Guide**: [docs/COLAB_SETUP.md](docs/COLAB_SETUP.md) - Full documentation with troubleshooting
-> - **Quick Fix**: [COLAB_FIX.md](COLAB_FIX.md) - If you're getting cryptography errors
+> - **Quick Copy-Paste Script**: [colab/colab_notebook_setup.py](colab/colab_notebook_setup.py) - Copy entire content to a Colab cell
+> - **Detailed Guide**: [colab/COLAB_SETUP.md](colab/COLAB_SETUP.md) - Full documentation with troubleshooting
+> - **Quick Fix**: [colab/COLAB_FIX.md](colab/COLAB_FIX.md) - If you're getting cryptography errors
 
 ### Quick Start Guide (3 Simple Steps):
 
@@ -50,7 +50,7 @@ The Gradio interface will open in a new browser tab. You're ready to use all the
 > - Use **Groq API** (100k tokens/day FREE) instead of Gemini (20 req/day)
 > - Enable **Single Pass** validation mode to save API quota
 > - For best performance on Colab, use videos **shorter than 30 seconds** to avoid timeouts
-> - Check [Colab Setup Guide](docs/COLAB_SETUP.md) if you get errors
+> - Check [Colab Setup Guide](colab/COLAB_SETUP.md) if you get errors
 
 ---
 
@@ -315,14 +315,18 @@ The Audio to Subtitles tab provides a complete AI-powered subtitle generation wo
 
 ## �📚 Documentation
 
-Comprehensive guides and documentation available in the [`docs/`](docs/) folder:
+Comprehensive guides and documentation:
 
+**Local Installation:**
 - **[Quick Start Guide](docs/QUICKSTART.md)** - Fast setup and first run
 - **[LipSync Guide](docs/LIPSYNC.md)** - Complete guide for AI lip-sync feature
 - **[I18N Guide](docs/I18N.md)** - Internationalization and translations
 - **[OpenCV Patch](docs/OPENCV_PATCH.md)** - Compatibility fix details
 - **[Project Structure](docs/PROJECT_STRUCTURE.md)** - Codebase organization
 - **[Changelog](docs/CHANGELOG.md)** - Version history and updates
+
+**Google Colab:**
+- **[Colab Documentation](colab/)** - Complete guide for running on Google Colab with free GPU
 
 ## 📦 AI Models
 

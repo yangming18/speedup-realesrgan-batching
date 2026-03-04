@@ -4,7 +4,7 @@
 
 ### Method 1: Copy the Complete Setup Script (Recommended)
 
-Copy the entire content from [colab_notebook_setup.py](../colab_notebook_setup.py) into a Colab cell and run it.
+Copy the entire content from [colab_notebook_setup.py](colab_notebook_setup.py) into a Colab cell and run it.
 
 This script:
 - ✅ Installs Python 3.11 in virtual environment
@@ -72,7 +72,7 @@ Run these commands in separate Colab cells:
 - `main.py` imports `utils.api_key_manager` immediately at startup
 - `api_key_manager.py` needs `cryptography.fernet` at import time  
 - Must install `cryptography` BEFORE running `main.py`
-- The [complete setup script](../colab_notebook_setup.py) handles this automatically
+- The [complete setup script](colab_notebook_setup.py) handles this automatically
 
 ---
 

@@ -2,11 +2,21 @@
 
 This directory contains all documentation for running The Gargantuas Video Editor on Google Colab.
 
+## ⚠️ Important Note
+
+**Background Removal Feature on Colab**
+
+The AI background removal feature (rembg) IS available on Colab but requires automatic dependency fixes:
+- The setup script handles all compatibility issues automatically
+- numpy, Pillow, and opencv versions are managed to work together
+
+All features (upscaling, lip-sync, subtitles, background removal) work on Colab with free GPU T4.
+
 ## 🚀 Quick Start Files
 
 ### For New Users
 
-1. **[colab_notebook_setup.py](../colab_notebook_setup.py)** ⭐ **START HERE**
+1. **[colab_notebook_setup.py](colab_notebook_setup.py)** ⭐ **START HERE**
    - Complete ready-to-use script
    - Copy entire content to a Colab cell
    - Includes all fixes and optimizations
@@ -36,14 +46,14 @@ This directory contains all documentation for running The Gargantuas Video Edito
 
 ## 🔧 Support Files
 
-5. **[setup_colab.sh](../setup_colab.sh)** - Bash script version
+5. **[setup_colab.sh](setup_colab.sh)** - Bash script version
    - Alternative to Python script
    - Can be run with: `!bash setup_colab.sh`
 
 ## 🎯 Most Common Issues & Solutions
 
 ### Issue 1: ModuleNotFoundError: No module named 'cryptography'
-**Solution**: Use [colab_notebook_setup.py](../colab_notebook_setup.py) or add one line:
+**Solution**: Use [colab_notebook_setup.py](colab_notebook_setup.py) or add one line:
 ```python
 !/content/py311/bin/pip install --no-cache-dir cryptography==46.0.5
 ```
@@ -55,14 +65,14 @@ This directory contains all documentation for running The Gargantuas Video Edito
 # Get key from: https://console.groq.com/keys
 # In app: Settings tab → Enter Groq key → Save
 ```
-**Details**: See [COLAB_SETUP.md](./COLAB_SETUP.md#api-keys-setup)
+**Details**: See [COLAB_SETUP.md](COLAB_SETUP.md#api-keys-setup)
 
 ### Issue 3: CUDA Out of Memory
 **Solution**: Enable GPU in Colab
 ```
 Runtime → Change runtime type → T4 GPU
 ```
-**Details**: See [COLAB_SETUP.md](./COLAB_SETUP.md#gpu-setup-recommended)
+**Details**: See [COLAB_SETUP.md](COLAB_SETUP.md#gpu-setup-recommended)
 
 ## 📋 Quick Decision Tree
 
@@ -84,9 +94,9 @@ Do you have an existing Colab notebook?
 
 ## 🆘 Need More Help?
 
-1. Check [Troubleshooting Section](./COLAB_SETUP.md#troubleshooting) in COLAB_SETUP.md
-2. Review [Performance Tips](./COLAB_SETUP.md#performance-tips)
-3. Read [Common Workflows](./COLAB_SETUP.md#common-workflows)
+1. Check [Troubleshooting Section](COLAB_SETUP.md#troubleshooting) in COLAB_SETUP.md
+2. Review [Performance Tips](COLAB_SETUP.md#performance-tips)
+3. Read [Common Workflows](COLAB_SETUP.md#common-workflows)
 4. Open an issue on GitHub with details
 
 ## 🔗 External Resources

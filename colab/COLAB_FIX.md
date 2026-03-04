@@ -14,7 +14,7 @@ If you're using an existing Colab notebook and getting `ModuleNotFoundError: No 
 
 ## ✅ NEW Setup (works correctly)
 
-**Option 1: Complete Setup Script** (copy from [colab_notebook_setup.py](./colab_notebook_setup.py))
+**Option 1: Complete Setup Script** (copy from [colab_notebook_setup.py](colab_notebook_setup.py))
 
 ```python
 # Full Colab setup with Python 3.11 + cryptography fix
@@ -94,13 +94,13 @@ Version: 46.0.5
 
 ## Still Having Issues?
 
-See full troubleshooting guide: [docs/COLAB_SETUP.md](./docs/COLAB_SETUP.md)
+See full troubleshooting guide: [COLAB_SETUP.md](COLAB_SETUP.md)
 
 ---
 
 ## Quick Links
 
-- **Complete Colab Script**: [colab_notebook_setup.py](./colab_notebook_setup.py)
-- **Setup Script**: [setup_colab.sh](./setup_colab.sh)
-- **Full Documentation**: [docs/COLAB_SETUP.md](./docs/COLAB_SETUP.md)
+- **Complete Colab Script**: [colab_notebook_setup.py](colab_notebook_setup.py)
+- **Setup Script**: [setup_colab.sh](setup_colab.sh)
+- **Full Documentation**: [COLAB_SETUP.md](COLAB_SETUP.md)
 - **Main README**: [README.md](./README.md)

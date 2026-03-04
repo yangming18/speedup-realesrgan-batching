@@ -45,18 +45,9 @@ print("📦 Installing rembg for background removal...")
 print("🔧 Fixing dependency conflicts...")
 !/content/py311/bin/python -c "from utils.dependency_patch import fix_dependencies; fix_dependencies(verbose=True)"
 
-# 9️⃣.7️⃣ Fix rembg-specific dependencies
-print("🔧 Applying rembg compatibility fixes...")
-!/content/py311/bin/pip install --force-reinstall "numpy>=1.24.4,<2" "Pillow>=10.0.0,<12.0"
-!/content/py311/bin/pip install --force-reinstall opencv-python==4.9.0.80 opencv-python-headless==4.9.0.80
-
-# 9️⃣.8️⃣ Verify rembg installation
-print("\n✅ Verifying rembg installation...")
-!/content/py311/bin/python -c "import rembg; print('rembg: OK')"
-!/content/py311/bin/python -c "import numpy; print(f'numpy: {numpy.__version__}')"
-!/content/py311/bin/python -c "import PIL; print(f'Pillow: {PIL.__version__}')"
-!/content/py311/bin/python -c "import cv2; print(f'opencv: {cv2.__version__}')"
-print("")
+# 9️⃣.7️⃣ Force numpy<2 as final step (critical for opencv/torch compatibility)
+print("🔧 Ensuring numpy<2 compatibility...")
+!/content/py311/bin/pip install --no-cache-dir "numpy>=1.24.4,<2"
 
 # 🔟 Fix Matplotlib backend for Gradio/server usage (prevents matplotlib_inline errors)
 %env MPLBACKEND=Agg
