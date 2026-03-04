@@ -9,6 +9,9 @@ A Python-based video editing application with AI upscaling and lip-sync capabili
 - **🎨 AI Upscaling**: Enhance images and videos using RealESRGAN models
 - **👄 AI Lip Sync**: Synchronize lips with audio using 4 advanced models (Wav2Lip, Wav2Lip GAN, SadTalker, Video-Retalking)
 - **📝 AI Subtitles**: Generate accurate subtitles with Whisper + GPT/Groq/Gemini, multi-agent validation, and real-time editing
+- **🖼️ Background Removal**: Remove backgrounds from images with AI (transparent or custom color)
+- **✨ Face Enhancement**: Restore and enhance face details with GFPGAN and other advanced models
+- **🎬 Image to Video**: Animate static images using Stable Video Diffusion
 - **🌐 Multi-language**: Full internationalization support (English, Italian, more coming)
 - **💯 100% Free**: No login, no subscriptions, no locked features (Groq & Gemini APIs are 100% free!)
 - **🖥️ Multi-device Support**: CPU, GPU (CUDA), and MPS (Apple Silicon) acceleration
@@ -146,6 +149,9 @@ The app will open in your browser at `http://localhost:7860`
    - **Upscaler** tab: Enhance images and videos with AI upscaling
    - **Lip Sync** tab: Synchronize lips with audio using 4 AI models
    - **Audio to Subtitles** tab: Generate accurate subtitles with Whisper + GPT/Groq/Gemini
+   - **Background Remover** tab: Remove backgrounds from images with AI
+   - **Face Enhance** tab: Restore and enhance face details with advanced models
+   - **Image to Video** tab: Animate static images using Stable Video Diffusion
    - **Settings** tab: Configure API keys for OpenAI, Groq, and Gemini (Groq & Gemini are FREE!)
 3. Open the **🔍 Video Comparison Modal** to see examples of different models
 4. Check out the **❤️ Support Me** tab if you find the app useful!
@@ -312,7 +318,92 @@ The Audio to Subtitles tab provides a complete AI-powered subtitle generation wo
 - **Professional Projects**: Export to ASS format with custom styling
 
 > 🎵 **Song Mode**: The system automatically detects songs and tells agents that long gaps (30-60s) are normal for instrumental breaks. No more incorrectly merged subtitles!
+## 🎨 AI Background Removal
 
+Remove backgrounds from images automatically using AI models.
+
+### Features
+
+- **AI-Powered Removal**: Uses rembg with U2-Net models for accurate background detection
+- **Transparent Background**: Export PNG with transparent background
+- **Custom Background Color**: Replace with solid color (color picker or RGB values)
+- **Alpha Matting**: Enable for better edge quality (slower but more accurate)
+- **Preview & Download**: Instant preview with download option
+
+### Supported Formats
+
+- **Input**: PNG, JPG, JPEG, WebP
+- **Output**: PNG (with transparency support)
+
+### Use Cases
+
+- Product photography (white/transparent backgrounds)
+- Profile pictures and avatars
+- Social media content
+- Design assets and mockups
+
+## ✨ Face Enhancement
+
+Enhance face and image details without upscaling using advanced AI models.
+
+### Available Models
+
+| Model | Description | Quality | Speed |
+|-------|-------------|---------|-------|
+| **GFPGANv1.3** (default) | Latest version, best quality | ⭐⭐⭐⭐⭐ | ⚡⚡⚡ |
+| **GFPGANv1.2** | Previous version, balanced | ⭐⭐⭐⭐ | ⚡⚡⚡⚡ |
+| **GFPGANv1** | First version, faster | ⭐⭐⭐ | ⚡⚡⚡⚡⚡ |
+| **RestoreFormer** | Alternative approach | ⭐⭐⭐⭐ | ⚡⚡⚡ |
+| **CodeFormer** | Fidelity control | ⭐⭐⭐⭐⭐ | ⚡⚡⚡ |
+
+### Features
+
+- **Face Restoration**: Repair old, blurry, or low-quality faces
+- **Detail Enhancement**: Improve skin texture, eyes, and facial features
+- **Multi-device Support**: CPU, CUDA (NVIDIA), and MPS (Apple Silicon)
+- **No Upscaling**: Maintains original resolution while enhancing details
+- **Batch Processing**: Process multiple images
+
+### Use Cases
+
+- Restore old family photos
+- Enhance video call screenshots
+- Improve AI-generated faces
+- Touch up portrait photography
+
+## 🎬 AI Image to Video
+
+Generate realistic video animations from static images using Stable Video Diffusion.
+
+### Features
+
+- **Stable Video Diffusion**: Uses Stability AI's img2vid-xt model
+- **Configurable Parameters**:
+  - **Frames**: 14-25 frames (default: 25)
+  - **FPS**: 6-30 fps (default: 7)
+  - **Motion Bucket**: 1-255 (controls motion intensity, default: 127)
+  - **Noise Augmentation**: 0.0-1.0 (adds variation, default: 0.02)
+  - **Decode Chunk Size**: 2-8 (memory optimization, default: 5)
+- **Auto-resize**: Automatically resizes images to optimal dimensions (1024x576)
+- **GPU Acceleration**: CUDA support (CPU fallback available)
+- **MP4 Export**: H.264 encoded video output
+
+### Technical Details
+
+- **Model**: stabilityai/stable-video-diffusion-img2vid-xt
+- **Memory**: ~6GB VRAM (GPU) or ~8GB RAM (CPU)
+- **Processing Time**: 2-5 minutes per video (depending on hardware)
+- **Input**: Any image format (PNG, JPG, WebP)
+- **Output**: MP4 video (H.264, configurable FPS)
+
+### Use Cases
+
+- Animate still photos and artwork
+- Create dynamic social media content
+- Product demonstrations and showcases
+- Creative video projects
+
+> ⚠️ **Note**: Image to Video requires significant computational resources. GPU recommended for faster processing.
 ## �📚 Documentation
 
 Comprehensive guides and documentation:
@@ -332,8 +423,11 @@ Comprehensive guides and documentation:
 
 **All AI models are downloaded automatically on first use** - you don't need to download anything manually!
 
-- RealESRGAN models (~60-100MB each) - Downloaded when using Upscaler
-- LipSync models (150MB - 2GB) - Downloaded when using each model for the first time
+- **RealESRGAN models** (~60-100MB each) - Downloaded when using Upscaler
+- **LipSync models** (150MB - 2GB) - Downloaded when using each model for the first time
+- **GFPGAN models** (~300MB) - Downloaded when using Face Enhancement
+- **Stable Video Diffusion** (~3.5GB) - Downloaded when using Image to Video
+- **rembg models** (~170MB) - Downloaded when using Background Removal
 - Models are cached in `models/` folder (not included in git due to size)
 
 **First Run**: Expect longer processing time as models download. Subsequent runs will be much faster!
@@ -347,6 +441,21 @@ This project is built with amazing open source technologies:
 - **[PyTorch](https://pytorch.org/)** (BSD-style) - Deep learning framework
 - **[RealESRGAN](https://github.com/xinntao/Real-ESRGAN)** (BSD 3-Clause) - AI upscaling models
 - **[BasicSR](https://github.com/XPixelGroup/BasicSR)** (Apache 2.0) - Super-resolution framework
+- **[GFPGAN](https://github.com/TencentARC/GFPGAN)** (MIT) - Face restoration models
+
+### AI Features
+- **[rembg](https://github.com/danielgatis/rembg)** (MIT) - Background removal with U2-Net
+- **[Stable Diffusion](https://github.com/Stability-AI/generative-models)** (CreativeML) - Image to video generation
+- **[Diffusers](https://github.com/huggingface/diffusers)** (Apache 2.0) - Diffusion models library
+- **[Wav2Lip](https://github.com/Rudrabha/Wav2Lip)** - Lip sync models
+- **[SadTalker](https://github.com/OpenTalker/SadTalker)** - Audio-driven talking head generation
+- **[Video-Retalking](https://github.com/OpenTalker/video-retalking)** - Face enhancement lip sync
+
+### Subtitle Generation
+- **[faster-whisper](https://github.com/guillaumekln/faster-whisper)** (MIT) - Fast speech recognition
+- **OpenAI API** - GPT models for subtitle refinement
+- **Groq API** - Fast Llama inference
+- **Gemini API** - Google's language models
 
 ### Additional Libraries
 - **OpenCV** - Image/video processing
