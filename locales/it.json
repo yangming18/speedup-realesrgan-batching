@@ -79,7 +79,7 @@
     "nosmooth": "🎬 No Smooth",
     "nosmooth_info": "Disabilita lo smoothing temporale (può migliorare la qualità in alcuni casi)",
     "processing_mode": "🎯 Modalità Processing",
-    "processing_mode_info": "Audio-only: solo lip sync | Audio+Video: animazione corpo + lip sync (LivePortrait + Wav2Lip GAN)",
+    "processing_mode_info": "Audio-only: solo lip sync | Audio+Video: animazione corpo + lip sync (solo LivePortrait)",
     "use_webcam": "📹 Usa Webcam",
     "use_webcam_info": "Registra driving video dalla webcam invece di caricare file",
     "driving_video_file": "🎬 Driving Video (per movimenti corpo)",
@@ -143,10 +143,10 @@
         "best_for": "Animazione di ritratti con movimenti del corpo superiore"
       },
       "thegargantuas_lipsync": {
-        "description": "🔥 Pipeline completa - Animazione corpo + lip sync perfetto",
-        "pros": ["Anima corpo + faccia", "Lip sync perfetto (Wav2Lip GAN)", "Movimenti naturali", "Qualità professionale", "Controllo completo driving video"],
-        "cons": ["Richiede driving video o webcam", "Più lento (doppia pipeline)", "Solo immagini come source"],
-        "best_for": "Produzioni professionali con movimenti corpo naturali + lip sync perfetto. Ideale per talking portraits con gesti."
+        "description": "🔥 Pipeline ibrida - Wav2Lip GAN + GFPGAN face enhancement",
+        "pros": ["Lip sync perfetto (Wav2Lip GAN)", "Face restoration con GFPGAN", "Migliora qualità globale viso", "Preserva identità", "Qualità professionale"],
+        "cons": ["Più lento (doppia pipeline)", "Richiede GPU per prestazioni ottimali", "Uso memoria moderato"],
+        "best_for": "Massima qualità lip-sync con face restoration automatica. Ideale per produzioni dove sia lip-sync che qualità viso sono importanti."
       }
     }
   },

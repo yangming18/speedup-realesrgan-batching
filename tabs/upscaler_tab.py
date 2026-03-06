@@ -413,6 +413,7 @@ class UpscalerTab:
                     )
                     video_output = gr.Video(
                         label="Upscaled Video",
+                        format="mp4",
                         visible=False
                     )
                     info_output = gr.Textbox(
@@ -554,6 +555,7 @@ class UpscalerTab:
                             label="",
                             autoplay=False,
                             show_label=False,
+                            format="mp4",
                             height=500
                         )
                     
@@ -564,6 +566,7 @@ class UpscalerTab:
                             label="",
                             autoplay=False,
                             show_label=False,
+                            format="mp4",
                             height=500
                         )
                 

@@ -7,7 +7,7 @@ A Python-based video editing application with AI upscaling and lip-sync capabili
 ## ✨ Features
 
 - **🎨 AI Upscaling**: Enhance images and videos using RealESRGAN models
-- **👄 AI Lip Sync**: Synchronize lips with audio using 4 advanced models (Wav2Lip, Wav2Lip GAN, SadTalker, Video-Retalking)
+- **👄 AI Lip Sync**: Synchronize lips with audio using 6 advanced models (Wav2Lip, Wav2Lip GAN, SadTalker, Video-Retalking, LivePortrait, The Gargantuas Hybrid)
 - **📝 AI Subtitles**: Generate accurate subtitles with Whisper + GPT/Groq/Gemini, multi-agent validation, and real-time editing
 - **🖼️ Background Removal**: Remove backgrounds from images with AI (transparent or custom color)
 - **✨ Face Enhancement**: Restore and enhance face details with GFPGAN and other advanced models
@@ -147,7 +147,7 @@ The app will open in your browser at `http://localhost:7860`
    - **Windows**: `run.bat`
 2. Choose your workflow:
    - **Upscaler** tab: Enhance images and videos with AI upscaling
-   - **Lip Sync** tab: Synchronize lips with audio using 4 AI models
+   - **Lip Sync** tab: Synchronize lips with audio using 6 AI models
    - **Audio to Subtitles** tab: Generate accurate subtitles with Whisper + GPT/Groq/Gemini
    - **Background Remover** tab: Remove backgrounds from images with AI
    - **Face Enhance** tab: Restore and enhance face details with advanced models
@@ -227,7 +227,7 @@ The tab includes an interactive gallery to compare different AI lip-sync models:
 
 **Features:**
 - **Source Selection**: Switch between image and video sources
-- **Model Comparison**: Compare results from Wav2Lip, Wav2Lip GAN, SadTalker, and Video-Retalking
+- **Model Comparison**: Compare results from Wav2Lip, Wav2Lip GAN, SadTalker, Video-Retalking, LivePortrait, and The Gargantuas Hybrid
 - **Side-by-Side View**: See original source next to processed result
 - **Synchronized Playback**: Videos automatically sync when playing/pausing/seeking
 - **Easy Navigation**: Select different models to instantly see quality differences
@@ -240,6 +240,8 @@ The tab includes an interactive gallery to compare different AI lip-sync models:
 | **Wav2Lip GAN** | Enhanced version with better quality | Balanced quality/speed production | ⚡⚡⚡⚡ |
 | **SadTalker** | Full facial animation with expressions | Static portrait animation | ⚡⚡ |
 | **Video-Retalking** | Maximum quality with face enhancement | Professional productions | ⚡ |
+| **LivePortrait** | Face + upper torso animation | Portrait with body movement | ⚡⚡⚡ |
+| **The Gargantuas Hybrid** 🔥 | Wav2Lip GAN + GFPGAN face restoration | Best quality lip-sync + face enhancement | ⚡⚡⚡ |
 
 > 💡 **Tip**: All lip sync models are downloaded automatically on first use. Try the examples gallery to compare quality before processing your own content!
 

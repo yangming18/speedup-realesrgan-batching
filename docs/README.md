@@ -18,7 +18,7 @@ Guida rapida per installare e avviare l'applicazione in pochi minuti.
 Guida completa all'utilizzo del tab LipSync per sincronizzare labbra con audio.
 
 **Contenuti:**
-- 4 modelli AI disponibili (Wav2Lip, Wav2Lip GAN, SadTalker, Video-Retalking)
+- 6 modelli AI disponibili (Wav2Lip, Wav2Lip GAN, SadTalker, Video-Retalking, LivePortrait, The Gargantuas Hybrid)
 - Come usare il LipSync per immagini e video
 - Impostazioni avanzate e ottimizzazioni
 - Risoluzione problemi comuni

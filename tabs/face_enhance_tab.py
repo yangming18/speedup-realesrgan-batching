@@ -272,6 +272,7 @@ class FaceEnhanceTab:
                     # Upload video
                     video_input = gr.Video(
                         label=self._t('face_enhance.upload_video'),
+                        format="mp4",
                         visible=False
                     )
                     
@@ -311,6 +312,7 @@ class FaceEnhanceTab:
                     # Output video
                     video_output = gr.Video(
                         label=self._t('face_enhance.output_video'),
+                        format="mp4",
                         visible=False
                     )
                     

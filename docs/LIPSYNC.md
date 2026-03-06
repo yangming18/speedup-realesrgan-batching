@@ -60,6 +60,17 @@ L'applicazione supporta **5 modelli AI** con caratteristiche diverse:
 - **Quando usarlo**: Animazione ritratti con movimenti del corpo superiore
 - **Nota**: Ideale quando serve animare anche le spalle e parte superiore del torso
 
+### 6. The Gargantuas Hybrid LipSync (⚡⚡⚡ | ⭐⭐⭐⭐⭐) 🔥 NOVITÀ
+**Pipeline ibrida proprietaria - Wav2Lip GAN + GFPGAN Face Enhancement**
+
+- **Velocità**: Media (~4-8 minuti per 30 secondi)
+- **Qualità**: Eccellente, massima qualità complessiva
+- **Memoria**: Medio consumo (~5GB RAM)
+- **Pro**: Lip sync perfetto (Wav2Lip GAN), Face restoration automatica (GFPGAN), Migliora qualità globale del viso, Preserva identità facciale, Qualità professionale
+- **Contro**: Più lento (doppia pipeline), Richiede GPU per prestazioni ottimali
+- **Quando usarlo**: Quando serve il miglior compromesso tra lip-sync perfetto e face quality. Ideale per produzioni dove la qualità del viso è importante quanto il lip-sync
+- **Nota**: Pipeline proprietaria che combina due modelli AI in sequenza per risultati ottimali
+
 ## 🚀 Guida Rapida
 
 ### Prima Configurazione
@@ -140,6 +151,7 @@ L'applicazione supporta **5 modelli AI** con caratteristiche diverse:
 | SadTalker | ~3 min | ~8-10 min | ~15-20 min |
 | Video-Retalking | ~5 min | ~15-20 min | ~30-40 min |
 | LivePortrait | ~2 min | ~5-7 min | ~10-15 min |
+| The Gargantuas Hybrid | ~1.5 min | ~4-6 min | ~8-12 min |
 
 **Note**: 
 - CPU è circa 3-5x più lento

@@ -42,7 +42,7 @@ class ImgToVideoTab:
             else:
                 self.device = "cpu"
                 if torch.backends.mps.is_available():
-                    logger.warning("MPS detected but Conv3D not supported. Using CPU for Stable Video Diffusion.")
+                    logger.info("MPS detected but Conv3D not supported. Using CPU for Stable Video Diffusion.")
             
             self.model_available = True
             logger.info(f"Stable Video Diffusion available on device: {self.device}")
@@ -363,7 +363,10 @@ class ImgToVideoTab:
                 gr.Markdown(f"### {_('img_to_video.output_video')}")
                 
                 # Output video
-                video_output = gr.Video(label=_("img_to_video.output_video"))
+                video_output = gr.Video(
+                    label=_("img_to_video.output_video"),
+                    format="mp4"
+                )
                 
                 # Info output
                 info_output = gr.Markdown()

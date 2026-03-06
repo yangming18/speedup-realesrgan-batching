@@ -2,11 +2,23 @@
 The-Gargantuas-Video-Editor - Main Application
 AI-Powered Video Editing Suite - 100% Free!
 """
+import warnings
 import gradio as gr
 import sys
 import os
 from pathlib import Path
 import json
+
+# Silence Gradio video conversion warnings (expected behavior)
+warnings.filterwarnings('ignore', message='Video does not have browser-compatible container or codec')
+warnings.filterwarnings('ignore', message='The `col_count` parameter is deprecated')
+
+# Silence torchvision deprecation warning (handled internally with shim)
+warnings.filterwarnings('ignore', message='.*torchvision.transforms.functional_tensor.*deprecated.*')
+
+# Silence OpenMP nested deprecation (system level, not our code)
+warnings.filterwarnings('ignore', message='.*omp_set_nested.*deprecated.*')
+os.environ['KMP_WARNINGS'] = '0'
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))

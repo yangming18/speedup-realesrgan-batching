@@ -1146,7 +1146,7 @@ Ultra Detailed Mode: Basic Pause Handling
                         headers=["#", "Start Time", "End Time", "Text"],
                         datatype=["number", "str", "str", "str"],
                         row_count=20,
-                        col_count=(4, "fixed"),
+                        column_count=(4, "fixed"),
                         interactive=True,
                         wrap=True,
                         label="Subtitle Editor"

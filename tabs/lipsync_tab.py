@@ -204,18 +204,17 @@ LIPSYNC_MODELS = {
         'repo': 'https://github.com/OpenTalker/video-retalking.git',
         'checkpoint': None,
     },
-    # 'thegargantuas_lipsync': {  # 🚧 IN FASE DI SVILUPPO - Temporaneamente disabilitato
-    #     'name': 'TheGargantuas LipSync (in sviluppo)',
-    #     'description': '🔥 Pipeline completa - Animazione corpo + lip sync perfetto',
-    #     'quality': 5,  # 5 stelle (massima qualità)
-    #     'speed': 2,    # 2 fulmini (medio-lento, doppia pipeline)
-    #     'pros': ['Anima corpo + faccia', 'Lip sync perfetto (Wav2Lip GAN)', 'Movimenti naturali', 'Qualità professionale', 'Controllo completo con driving video'],
-    #     'cons': ['Richiede driving video o webcam', 'Più lento (doppia pipeline)', 'Solo immagini statiche come source'],
-    #     'best_for': 'Produzioni professionali con movimenti corpo naturali + lip sync perfetto. Ideale per talking portraits con gesti.',
-    #     'repo': None,  # Pipeline combinata (LivePortrait + Wav2Lip GAN)
-    #     'checkpoint': None,
-    #     'requires_driving_video': True,  # Flag speciale
-    # },
+    'thegargantuas_lipsync': {
+        'name': 'The Gargantuas Hybrid LipSync',
+        'description': '🔥 Pipeline ibrida - Wav2Lip GAN + GFPGAN Face Enhancement',
+        'quality': 5,  # 5 stelle (massima qualità)
+        'speed': 3,    # 3 fulmini (medio, doppia pipeline)
+        'pros': ['Lip sync perfetto (Wav2Lip GAN)', 'Face restoration con GFPGAN', 'Migliora qualità globale', 'Preserva identità', 'Qualità professionale'],
+        'cons': ['Più lento (doppia pipeline)', 'Richiede GPU per prestazioni ottimali', 'Uso memoria moderato'],
+        'best_for': 'Highest quality lip-sync con face restoration automatica. Ideale per produzioni dove serve lip-sync + face quality.',
+        'repo': None,  # Pipeline ibrida proprietaria
+        'checkpoint': 'wav2lip_gan.pth',  # Usa Wav2Lip GAN + GFPGAN
+    },
 }
 
 
@@ -248,10 +247,20 @@ class LipSyncProcessor:
         self.models_dir = Path(models_dir)
         self.models_dir.mkdir(parents=True, exist_ok=True)
         
-        # Wav2Lip e Wav2Lip_GAN condividono lo stesso repo
-        repo_name = 'wav2lip' if self.model_name in ['wav2lip', 'wav2lip_gan'] else self.model_name
+        # Wav2Lip, Wav2Lip_GAN and TheGargantuas share the same repo (wav2lip)
+        if self.model_name in ['wav2lip', 'wav2lip_gan', 'thegargantuas_lipsync']:
+            repo_name = 'wav2lip'
+        else:
+            repo_name = self.model_name
+            
         self.model_repo_dir = self.models_dir / repo_name
         self.model_weights_dir = self.model_repo_dir / "checkpoints"
+        
+        # Store models base directory for hybrid processor
+        self.models_base_dir = self.models_dir.parent
+        
+        # Device manager (optional, will be set by LipSyncTab)
+        self.device_manager = None
         
         # Store last error for debugging
         self.last_error = None
@@ -284,6 +293,12 @@ class LipSyncProcessor:
     
     def is_model_downloaded(self) -> bool:
         """Verifica se il modello è già scaricato"""
+        # TheGargantuas Hybrid uses wav2lip_gan + GFPGAN (both already in project)
+        if self.model_name == 'thegargantuas_lipsync':
+            # Check if wav2lip_gan checkpoint exists
+            wav2lip_gan_checkpoint = self.model_weights_dir / 'wav2lip_gan.pth'
+            return wav2lip_gan_checkpoint.exists()
+        
         if not self.model_repo_dir.exists():
             return False
         
@@ -326,11 +341,33 @@ class LipSyncProcessor:
         try:
             model_info = LIPSYNC_MODELS[self.model_name]
             
+            # TheGargantuas Hybrid uses existing models, just download wav2lip_gan if needed
+            if self.model_name == 'thegargantuas_lipsync':
+                # Check if wav2lip_gan is downloaded
+                wav2lip_gan_checkpoint = self.model_weights_dir / 'wav2lip_gan.pth'
+                if wav2lip_gan_checkpoint.exists():
+                    log("✅ The Gargantuas Hybrid LipSync ready (uses wav2lip_gan + GFPGAN)")
+                    return True
+                else:
+                    log("📥 Downloading wav2lip_gan for The Gargantuas Hybrid...")
+                    # Download wav2lip_gan
+                    temp_processor = LipSyncProcessor(
+                        model_name='wav2lip_gan',
+                        device=self.device,
+                        models_dir=self.models_dir
+                    )
+                    return temp_processor.download_model(progress_callback=progress_callback)
+            
             # Clone repository se non esiste
             if not self.model_repo_dir.exists():
+                repo = model_info.get('repo')
+                if not repo:
+                    log(f"❌ No repository URL for {self.model_name}")
+                    return False
+                    
                 log(f"📥 Clonazione repository {model_info['name']}...")
                 subprocess.run(
-                    ['git', 'clone', model_info['repo'], str(self.model_repo_dir)],
+                    ['git', 'clone', repo, str(self.model_repo_dir)],
                     check=True,
                     capture_output=True
                 )
@@ -488,6 +525,11 @@ class LipSyncProcessor:
                 )
             elif self.model_name == 'video_retalking':
                 return self._process_video_retalking(
+                    image_or_video_path, audio_path, output_path,
+                    progress_callback, **kwargs
+                )
+            elif self.model_name == 'thegargantuas_lipsync':
+                return self._process_thegargantuas_lipsync(
                     image_or_video_path, audio_path, output_path,
                     progress_callback, **kwargs
                 )
@@ -1165,6 +1207,145 @@ class LipSyncProcessor:
                 Path(temp_video_path).unlink()
             return False
     
+    def _process_thegargantuas_lipsync(
+        self,
+        video_path: str,
+        audio_path: str,
+        output_path: str,
+        progress_callback: Optional[Callable],
+        **kwargs
+    ) -> bool:
+        """
+        Processing con The Gargantuas Hybrid LipSync.
+        Pipeline ibrida: Wav2Lip GAN (mouth) + CodeFormer Enhancement (mouth) + CodeFormer Restoration (face)
+        """
+        try:
+            from utils.hybrid_lipsync import HybridLipSyncProcessor
+        except ImportError as e:
+            error_msg = f"Impossibile importare HybridLipSyncProcessor: {e}"
+            logger.error(error_msg)
+            self.last_error = error_msg
+            if progress_callback:
+                progress_callback(0, "❌ Modulo hybrid_lipsync non disponibile")
+            return False
+        
+        if progress_callback:
+            progress_callback(0, "🚀 Avvio The Gargantuas Hybrid LipSync...")
+        
+        # Verifica file input
+        if not Path(video_path).exists():
+            error_msg = f"Video/immagine non trovato: {video_path}"
+            logger.error(error_msg)
+            self.last_error = error_msg
+            if progress_callback:
+                progress_callback(0, "❌ File sorgente non trovato")
+            return False
+        
+        if not Path(audio_path).exists():
+            error_msg = f"Audio non trovato: {audio_path}"
+            logger.error(error_msg)
+            self.last_error = error_msg
+            if progress_callback:
+                progress_callback(0, "❌ File audio non trovato")
+            return False
+        
+        # Gestisci immagini: converti in video temporaneo
+        temp_video_path = None
+        actual_video_path = video_path
+        
+        if _is_image_file(video_path):
+            logger.info(f"Immagine rilevata: {video_path}, conversione in video...")
+            if progress_callback:
+                progress_callback(2, "🖼️ Conversione immagine → video...")
+            
+            from utils.temp_manager import TempManager
+            temp_manager = TempManager()
+            temp_video_path = temp_manager.get_temp_file_path("hybrid_lipsync_temp.mp4")
+            
+            if not _convert_image_to_video(video_path, audio_path, temp_video_path, max_height=480):
+                error_msg = "Impossibile convertire l'immagine in video. Verifica che ffmpeg sia installato."
+                logger.error(error_msg)
+                self.last_error = error_msg
+                if progress_callback:
+                    progress_callback(0, "❌ Conversione immagine fallita")
+                return False
+            
+            actual_video_path = temp_video_path
+            logger.info(f"✅ Video temporaneo creato: {actual_video_path}")
+        
+        # Verifica checkpoint Wav2Lip GAN
+        checkpoint = LIPSYNC_MODELS['thegargantuas_lipsync']['checkpoint']
+        checkpoint_path = self.model_weights_dir / checkpoint
+        
+        if not checkpoint_path.exists():
+            error_msg = f"Checkpoint Wav2Lip GAN non trovato: {checkpoint_path}\n\nEsegui il download del modello Wav2Lip GAN prima."
+            logger.error(error_msg)
+            self.last_error = error_msg
+            if progress_callback:
+                progress_callback(0, "❌ Wav2Lip GAN checkpoint mancante")
+            # Cleanup
+            if temp_video_path and Path(temp_video_path).exists():
+                Path(temp_video_path).unlink()
+            return False
+        
+        # Inizializza il processor ibrido
+        try:
+            # Get device string for HybridLipSyncProcessor
+            # Convert from DeviceManager format to simple string (cuda/cpu/mps)
+            if hasattr(self, 'device_manager') and self.device_manager is not None:
+                current_device = self.device_manager.current_device
+                # Convert "GPU (CUDA)" -> "cuda", "MPS (Apple Silicon)" -> "mps", "CPU" -> "cpu"
+                if "CUDA" in current_device:
+                    device_to_use = "cuda"
+                elif "MPS" in current_device:
+                    device_to_use = "mps"
+                else:
+                    device_to_use = "cpu"
+            else:
+                device_to_use = self.device
+            
+            processor = HybridLipSyncProcessor(
+                models_dir=self.models_base_dir,
+                device=device_to_use
+            )
+        except Exception as e:
+            error_msg = f"Impossibile inizializzare HybridLipSyncProcessor: {e}"
+            logger.error(error_msg)
+            self.last_error = error_msg
+            if progress_callback:
+                progress_callback(0, f"❌ Inizializzazione fallita: {str(e)}")
+            # Cleanup
+            if temp_video_path and Path(temp_video_path).exists():
+                Path(temp_video_path).unlink()
+            return False
+        
+        # Esegui processing
+        logger.info(f"Avvio processing ibrido: {actual_video_path} + {audio_path} → {output_path}")
+        
+        success = processor.process(
+            video_path=actual_video_path,
+            audio_path=audio_path,
+            output_path=output_path,
+            progress_callback=progress_callback
+        )
+        
+        # Cleanup temp file
+        if temp_video_path and Path(temp_video_path).exists():
+            try:
+                Path(temp_video_path).unlink()
+                logger.info(f"🗑️ File temporaneo rimosso: {temp_video_path}")
+            except Exception as e:
+                logger.warning(f"Impossibile rimuovere file temporaneo: {e}")
+        
+        if success:
+            logger.info(f"✅ The Gargantuas Hybrid LipSync completato: {output_path}")
+            return True
+        else:
+            error_msg = processor.last_error if hasattr(processor, 'last_error') else "Processing fallito"
+            logger.error(f"❌ The Gargantuas Hybrid LipSync fallito: {error_msg}")
+            self.last_error = error_msg
+            return False
+    
     def _process_liveportrait(
         self,
         source_image: str,
@@ -1788,6 +1969,44 @@ class LipSyncTab:
         
         return None
     
+    def _trim_video_to_audio_duration(self, video_path: str, audio_duration: float, progress_callback=None) -> str:
+        """Trim video to match audio duration using ffmpeg"""
+        try:
+            # Verify input is actually a video, not audio
+            video_ext = Path(video_path).suffix.lower()
+            audio_extensions = {'.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac', '.wma'}
+            
+            if video_ext in audio_extensions:
+                logger.error(f"Cannot trim audio file as video: {video_path}")
+                return video_path  # Return as-is, it's already audio
+            
+            output_path = self.temp_manager.get_temp_file_path(f"trimmed_{Path(video_path).name}")
+            
+            if progress_callback:
+                progress_callback(0, f"✂️ Taglio video a {audio_duration:.1f}s...")
+            
+            cmd = [
+                'ffmpeg', '-y',
+                '-i', str(video_path),
+                '-t', str(audio_duration),
+                '-c:v', 'copy',  # Copy video codec (no re-encoding, fast)
+                '-an',  # No audio in trimmed video
+                str(output_path)
+            ]
+            
+            logger.info(f"Trimming video: {' '.join(cmd)}")
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode == 0 and Path(output_path).exists():
+                logger.info(f"✅ Video trimmed successfully: {output_path}")
+                return output_path
+            else:
+                logger.error(f"Video trim failed: {result.stderr}")
+                return video_path  # Return original if trim fails
+        except Exception as e:
+            logger.error(f"Error trimming video: {e}", exc_info=True)
+            return video_path  # Return original if error
+    
     def process_lipsync(
         self,
         input_file,
@@ -1809,56 +2028,44 @@ class LipSyncTab:
         if audio_file is None:
             return None, "❌ Per favore carica un file audio"
         
-        # Check duration compatibility
-        duration_check = self._check_duration_compatibility(input_file, audio_file)
-        if duration_check and duration_check.get('warning'):
-            # Return warning but allow to continue
-            warning_msg = duration_check['message']
-            warning_msg += self._t('lipsync.duration_check_continue_prompt')
-            return None, warning_msg
+        # Debug logging
+        input_path = input_file if isinstance(input_file, str) else input_file.name
+        audio_path = audio_file if isinstance(audio_file, str) else audio_file.name
+        logger.info(f"Processing lipsync - Input: {input_path}, Audio: {audio_path}")
         
-        # Check driving video for TheGargantuas LipSync model
-        if model_name == "thegargantuas_lipsync":
-            driving_video = webcam_recording if use_webcam else driving_video_file
-            if driving_video is None:
-                return None, "❌ TheGargantuas LipSync richiede un driving video. Per favore carica un video o registra dalla webcam."
+        # Check duration compatibility and trim video if needed
+        duration_check = self._check_duration_compatibility(input_file, audio_file)
+        trimmed_video_used = False
+        
+        if duration_check and duration_check.get('warning'):
+            # Video is longer than audio - trim it automatically
+            video_duration = duration_check['video_duration']
+            audio_duration = duration_check['audio_duration']
+            difference = duration_check['difference']
             
-            # If using webcam with countdown, sync and trim files
-            if use_webcam and audio_with_countdown_path:
-                progress(0, desc="🎬 Sincronizzazione audio e video...")
-                try:
-                    # Trim countdown from both audio and video
-                    synced_video, synced_audio = sync_audio_video_with_countdown(
-                        audio_with_countdown=audio_with_countdown_path,
-                        webcam_video=driving_video,
-                        output_dir=self.temp_manager.temp_dir,
-                        countdown_duration=5
-                    )
-                    # Use synced files for processing
-                    driving_video = synced_video
-                    audio_file = synced_audio
-                    progress(5, desc="✅ Sincronizzazione completata!")
-                except Exception as e:
-                    logger.error(f"Errore nella sincronizzazione: {e}", exc_info=True)
-                    return None, f"❌ Errore sincronizzazione: {str(e)}"
+            logger.info(f"Video ({video_duration:.1f}s) longer than audio ({audio_duration:.1f}s) by {difference:.1f}s - trimming video")
+            progress(0, desc=f"✂️ Video più lungo dell'audio - taglio automatico da {video_duration:.1f}s a {audio_duration:.1f}s...")
+            
+            # Get input path
+            input_path = input_file if isinstance(input_file, str) else input_file.name
+            
+            # Trim video to audio duration
+            trimmed_path = self._trim_video_to_audio_duration(
+                input_path, 
+                audio_duration,
+                lambda pct, msg: progress(pct / 100, desc=msg)
+            )
+            
+            if trimmed_path != input_path:
+                input_file = trimmed_path
+                trimmed_video_used = True
+                logger.info(f"✅ Using trimmed video: {trimmed_path}")
         
         try:
             # Select device
             self.device_manager.set_device(device)
             
-            # Check if TheGargantuas LipSync (LivePortrait + Wav2Lip pipeline)
-            if model_name == "thegargantuas_lipsync":
-                return self._process_audio_video_pipeline(
-                    input_file=input_file,
-                    audio_file=audio_file,
-                    driving_video=webcam_recording if use_webcam else driving_video_file,
-                    device=device,
-                    resize_factor=resize_factor,
-                    nosmooth=nosmooth,
-                    progress=progress
-                )
-            
-            # Standard audio-only processing
+            # Standard processing for all models (including thegargantuas_lipsync)
             # Initialize processor if model changed
             if self.processor is None or self.current_model != model_name:
                 progress(0, desc=f"Inizializzazione {model_name}...")
@@ -1868,6 +2075,8 @@ class LipSyncTab:
                     device=device,
                     models_dir=models_dir
                 )
+                # Pass device_manager to processor for thegargantuas_lipsync
+                self.processor.device_manager = self.device_manager
                 self.current_model = model_name
             
             # Download model if not present
@@ -1899,7 +2108,10 @@ class LipSyncTab:
             )
             
             if success:
-                return str(output_path), f"✅ Lip sync completato con successo usando {LIPSYNC_MODELS[model_name]['name']}!"
+                success_msg = f"✅ Lip sync completato con successo usando {LIPSYNC_MODELS[model_name]['name']}!"
+                if trimmed_video_used:
+                    success_msg += f"\n\n✂️ Il video è stato automaticamente tagliato alla durata dell'audio ({duration_check['audio_duration']:.1f}s) per una sincronizzazione ottimale."
+                return str(output_path), success_msg
             else:
                 error_details = ""
                 if self.processor and self.processor.last_error:
@@ -2031,6 +2243,7 @@ class LipSyncTab:
                                     sources=["webcam"],
                                     label="📹 STEP 2: Click 🔴 RECORD within 5 seconds",
                                     include_audio=False,
+                                    format="mp4",
                                     scale=1
                                 )
                             
@@ -2069,7 +2282,10 @@ class LipSyncTab:
                     )
                     
                     # Output
-                    output_video = gr.Video(label=self._t('lipsync.output_video'))
+                    output_video = gr.Video(
+                        label=self._t('lipsync.output_video'),
+                        format="mp4"
+                    )
                     output_info = gr.Textbox(
                         label=self._t('lipsync.info'),
                         lines=10,
@@ -2267,6 +2483,7 @@ class LipSyncTab:
                             label="",
                             autoplay=False,
                             show_label=False,
+                            format="mp4",
                             height=500
                         )
                     
@@ -2277,6 +2494,7 @@ class LipSyncTab:
                             label="",
                             autoplay=False,
                             show_label=False,
+                            format="mp4",
                             height=500
                         )
                 
