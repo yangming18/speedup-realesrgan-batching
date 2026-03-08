@@ -2098,13 +2098,18 @@ class LipSyncTab:
             def progress_callback(percent, msg):
                 progress(percent / 100, desc=msg)
             
+            # Prepare kwargs for model-specific parameters
+            process_kwargs = {
+                'resize_factor': resize_factor,
+                'nosmooth': nosmooth
+            }
+            
             success = self.processor.process(
                 image_or_video_path=input_file,
                 audio_path=audio_file,
                 output_path=str(output_path),
                 progress_callback=progress_callback,
-                resize_factor=resize_factor,
-                nosmooth=nosmooth
+                **process_kwargs
             )
             
             if success:
