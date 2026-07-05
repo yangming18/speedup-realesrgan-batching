@@ -4,10 +4,8 @@ python-dotenv>=1.0.0
 cryptography==46.0.5  # Required by api_key_manager for secure key storage
 
 # Image/Video Processing
-opencv-python==4.9.0.80
-opencv-python-headless>=4.9.0.80  # Required by albumentations
 Pillow>=10.0.0,<12.0  # moviepy compatibility
-numpy>=1.24.4,<2  # Strict version for all packages
+numpy==1.26.4 # Strict version for all packages
 ffmpeg-python>=0.2.0
 
 # AI Models (fixed versions for compatibility)
@@ -59,7 +57,7 @@ pytest-mock>=3.11.0
 # AI Background Removal
 # Note: rembg has some dependency conflicts that are auto-fixed at setup/startup
 # The app applies a compatibility patch automatically (see utils/dependency_patch.py)
-rembg==2.0.72  # AI background removal
+rembg # AI background removal
 pymatting==1.1.15  # Required by rembg
 
 # AI Image to Video
