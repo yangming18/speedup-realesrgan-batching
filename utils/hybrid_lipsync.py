@@ -52,7 +52,11 @@ class HybridLipSyncProcessor:
         self,
         video_path: str,
         audio_path: str,
-        progress_callback: Optional[Callable] = None
+        progress_callback: Optional[Callable] = None,
+        resize_factor: int = 1,
+        nosmooth: bool = False,
+        face_det_batch_size: int = 64,
+        wav2lip_batch_size: int = 512
     ) -> str:
         """
         Apply Wav2Lip GAN to create lip-synced video.
@@ -75,6 +79,15 @@ class HybridLipSyncProcessor:
             '--audio', str(audio_path),
             '--outfile', str(temp_wav2lip_output),
         ]
+
+        if resize_factor:
+            cmd.extend(['--resize_factor', str(int(resize_factor))])
+        if nosmooth:
+            cmd.append('--nosmooth')
+        if face_det_batch_size:
+            cmd.extend(['--face_det_batch_size', str(int(face_det_batch_size))])
+        if wav2lip_batch_size:
+            cmd.extend(['--wav2lip_batch_size', str(int(wav2lip_batch_size))])
         
         logger.info(f"Running Wav2Lip GAN: {' '.join(cmd)}")
         
@@ -163,7 +176,11 @@ class HybridLipSyncProcessor:
         video_path: str,
         audio_path: str,
         output_path: str,
-        progress_callback: Optional[Callable[[int, str], None]] = None
+        progress_callback: Optional[Callable[[int, str], None]] = None,
+        resize_factor: int = 1,
+        nosmooth: bool = False,
+        face_det_batch_size: int = 64,
+        wav2lip_batch_size: int = 512
     ) -> bool:
         """
         Main processing pipeline for The Gargantuas Hybrid LipSync.
@@ -183,7 +200,13 @@ class HybridLipSyncProcessor:
             
             # Step 1: Apply Wav2Lip GAN for lip-sync
             video_with_lipsync = self._apply_wav2lip_gan(
-                video_path, audio_path, progress_callback
+                video_path,
+                audio_path,
+                progress_callback,
+                resize_factor=resize_factor,
+                nosmooth=nosmooth,
+                face_det_batch_size=face_det_batch_size,
+                wav2lip_batch_size=wav2lip_batch_size
             )
             
             # Step 2: Enhance face quality with GFPGAN
@@ -260,4 +283,3 @@ class HybridLipSyncProcessor:
                 logger.info("Temporary files cleaned")
         except Exception as e:
             logger.warning(f"Failed to cleanup temp files: {e}")
-

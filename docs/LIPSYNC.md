@@ -140,6 +140,12 @@ L'applicazione supporta **5 modelli AI** con caratteristiche diverse:
 - **ON**: Disabilita smoothing, può migliorare nitidezza in alcuni casi
 - **Prova entrambi** se i risultati non ti soddisfano
 
+### Batch Size Wav2Lip / Wav2Lip GAN
+- **Face Detection Batch Size**: numero di frame usati per batch durante il rilevamento volto.
+- **Wav2Lip GAN Batch Size**: numero di sample usati per batch durante l'inferenza GAN.
+- **Google Colab A100 consigliato**: Face Detection Batch Size `64`, Wav2Lip GAN Batch Size `512`.
+- Se usi GPU con meno VRAM, riduci prima `Wav2Lip GAN Batch Size`, poi `Face Detection Batch Size`.
+
 ## 📊 Tempi di Processing (Stimati)
 
 **Hardware**: Apple M1/M2 (MPS) o GPU NVIDIA equivalente

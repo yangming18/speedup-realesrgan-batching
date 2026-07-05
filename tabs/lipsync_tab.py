@@ -630,6 +630,10 @@ class LipSyncProcessor:
             cmd.extend(['--resize_factor', str(kwargs['resize_factor'])])
         if kwargs.get('nosmooth'):
             cmd.append('--nosmooth')
+        if kwargs.get('face_det_batch_size'):
+            cmd.extend(['--face_det_batch_size', str(int(kwargs['face_det_batch_size']))])
+        if kwargs.get('wav2lip_batch_size'):
+            cmd.extend(['--wav2lip_batch_size', str(int(kwargs['wav2lip_batch_size']))])
         
         # Log comando per debugging
         logger.info(f"Esecuzione comando Wav2Lip: {' '.join(cmd)}")
@@ -1326,7 +1330,8 @@ class LipSyncProcessor:
             video_path=actual_video_path,
             audio_path=audio_path,
             output_path=output_path,
-            progress_callback=progress_callback
+            progress_callback=progress_callback,
+            **kwargs
         )
         
         # Cleanup temp file
@@ -2015,6 +2020,8 @@ class LipSyncTab:
         device,
         resize_factor,
         nosmooth,
+        face_det_batch_size,
+        wav2lip_batch_size,
         use_webcam=False,
         driving_video_file=None,
         webcam_recording=None,
@@ -2101,7 +2108,9 @@ class LipSyncTab:
             # Prepare kwargs for model-specific parameters
             process_kwargs = {
                 'resize_factor': resize_factor,
-                'nosmooth': nosmooth
+                'nosmooth': nosmooth,
+                'face_det_batch_size': face_det_batch_size,
+                'wav2lip_batch_size': wav2lip_batch_size
             }
             
             success = self.processor.process(
@@ -2278,6 +2287,24 @@ class LipSyncTab:
                             label=self._t('lipsync.nosmooth'),
                             info=self._t('lipsync.nosmooth_info')
                         )
+
+                        face_det_batch_size = gr.Slider(
+                            minimum=1,
+                            maximum=256,
+                            value=64,
+                            step=1,
+                            label=self._t('lipsync.face_det_batch_size'),
+                            info=self._t('lipsync.face_det_batch_size_info')
+                        )
+
+                        wav2lip_batch_size = gr.Slider(
+                            minimum=1,
+                            maximum=1024,
+                            value=512,
+                            step=1,
+                            label=self._t('lipsync.wav2lip_batch_size'),
+                            info=self._t('lipsync.wav2lip_batch_size_info')
+                        )
                     
                     # Process button
                     process_btn = gr.Button(
@@ -2349,6 +2376,8 @@ class LipSyncTab:
                     device_radio,
                     resize_factor,
                     nosmooth,
+                    face_det_batch_size,
+                    wav2lip_batch_size,
                     use_webcam,
                     driving_video_file,
                     webcam_recording,

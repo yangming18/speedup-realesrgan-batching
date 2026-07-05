@@ -12,8 +12,8 @@ from basicsr.archs.rrdbnet_arch import RRDBNet
 from realesrgan import RealESRGANer
 from config.config import MODELS
 import ffmpeg
-import os
 import time
+import subprocess
 import shutil
 
 
@@ -26,6 +26,81 @@ class UpscalerTab:
         self.current_model = None
         self.current_model_name = None
         self.upsampler = None
+        self._ffmpeg_executable = None
+        self._nvenc_available = None
+
+    def _get_ffmpeg_executable(self):
+        """Return a usable ffmpeg executable path."""
+        if self._ffmpeg_executable:
+            return self._ffmpeg_executable
+
+        ffmpeg_path = shutil.which("ffmpeg")
+        if ffmpeg_path:
+            self._ffmpeg_executable = ffmpeg_path
+            return self._ffmpeg_executable
+
+        try:
+            import imageio_ffmpeg
+            self._ffmpeg_executable = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            self._ffmpeg_executable = "ffmpeg"
+
+        return self._ffmpeg_executable
+
+    def _can_use_nvenc(self):
+        """Return True when ffmpeg can actually encode with NVIDIA NVENC."""
+        if self._nvenc_available is not None:
+            return self._nvenc_available
+
+        ffmpeg_exe = self._get_ffmpeg_executable()
+        width, height = 64, 64
+        smoke_frame = bytes(width * height * 3)
+        cmd = [
+            ffmpeg_exe, '-y',
+            '-loglevel', 'error',
+            '-f', 'rawvideo',
+            '-pix_fmt', 'bgr24',
+            '-s', f'{width}x{height}',
+            '-r', '1',
+            '-i', '-',
+            '-frames:v', '1',
+            '-c:v', 'h264_nvenc',
+            '-preset', 'fast',
+            '-cq', '18',
+            '-f', 'null',
+            '-'
+        ]
+
+        try:
+            result = subprocess.run(
+                cmd,
+                input=smoke_frame,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                timeout=10
+            )
+            self._nvenc_available = result.returncode == 0
+        except Exception:
+            self._nvenc_available = False
+
+        return self._nvenc_available
+
+    def _get_video_encoder_args(self):
+        """Choose the fastest available H.264 encoder for the current runtime."""
+        if self._can_use_nvenc():
+            return [
+                '-c:v', 'h264_nvenc',
+                '-preset', 'fast',
+                '-cq', '18',
+                '-pix_fmt', 'yuv420p',
+            ], 'h264_nvenc'
+
+        return [
+            '-c:v', 'libx264',
+            '-preset', 'veryfast',
+            '-crf', '18',
+            '-pix_fmt', 'yuv420p',
+        ], 'libx264'
     
     def load_model(self, model_name, device):
         """Load RealESRGAN model"""
@@ -133,37 +208,18 @@ class UpscalerTab:
             if self.upsampler is None:
                 return None, f"✗ Failed to load model\n{load_msg}"
             
-            # Check if video has audio
+            # Check if video has audio. Audio is mapped directly by ffmpeg later;
+            # it is not extracted to a temporary file.
             progress(0.05, desc="Checking audio...")
-            audio_path = None
             has_audio = False
             
             try:
                 probe = ffmpeg.probe(input_video)
                 audio_streams = [stream for stream in probe['streams'] if stream['codec_type'] == 'audio']
                 has_audio = len(audio_streams) > 0
-                
-                if has_audio:
-                    # Extract audio
-                    print("✓ Audio detected, extracting...")
-                    audio_path = self.temp_manager.get_temp_file_path("original_audio.aac")
-                    
-                    # Remove old audio file if exists
-                    if audio_path.exists():
-                        audio_path.unlink()
-                    
-                    (
-                        ffmpeg
-                        .input(input_video)
-                        .output(str(audio_path), acodec='copy', vn=None)
-                        .overwrite_output()
-                        .run(quiet=True, capture_stdout=True, capture_stderr=True)
-                    )
-                    print(f"✓ Audio extracted to {audio_path}")
-                else:
-                    print("ℹ️ No audio stream detected in video")
+                print("✓ Audio detected, will preserve it during encoding" if has_audio else "ℹ️ No audio stream detected in video")
             except Exception as e:
-                print(f"Warning: Could not extract audio: {e}")
+                print(f"Warning: Could not inspect audio: {e}")
                 has_audio = False
             
             # Open video
@@ -182,108 +238,128 @@ class UpscalerTab:
             # Use original fps if None or 0
             if fps is None or fps == 0:
                 fps = original_fps
+            if fps is None or fps <= 0 or np.isnan(fps):
+                fps = 30
             
-            # Calculate output dimensions
+            # Calculate expected output dimensions. The actual encoder size is
+            # confirmed from the first enhanced frame.
             scale = MODELS[model_name]['scale']
             output_width = width * scale
             output_height = height * scale
             
             progress(0.15, desc=f"Processing {total_frames} frames...")
             
-            # Create frames directory
-            frames_dir = self.temp_manager.get_frames_dir()
-            output_frames_dir = self.temp_manager.create_temp_subdir("output_frames")
+            output_video_path = self.temp_manager.get_temp_file_path("upscaled_video.mp4")
+            if output_video_path.exists():
+                output_video_path.unlink()
             
-            # Extract and upscale frames with timing
+            # Stream enhanced frames directly into ffmpeg instead of writing PNGs.
             frame_count = 0
             total_processing_time = 0
             start_time = time.time()
+            encoder = None
+            encoder_name = "unknown"
+            progress_update_interval = max(1, total_frames // 100 if total_frames else 10)
             
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                
-                frame_start = time.time()
-                
-                # Upscale frame
-                output_frame, _ = self.upsampler.enhance(frame, outscale=scale)
-                
-                frame_end = time.time()
-                frame_time = frame_end - frame_start
-                total_processing_time += frame_time
-                
-                # Save frame
-                output_frame_path = output_frames_dir / f"frame_{frame_count:06d}.png"
-                cv2.imwrite(str(output_frame_path), output_frame)
-                
-                frame_count += 1
-                avg_time_per_frame = total_processing_time / frame_count
-                remaining_frames = total_frames - frame_count
-                eta_seconds = remaining_frames * avg_time_per_frame
-                
-                progress(0.15 + (0.7 * frame_count / total_frames), 
-                        desc=f"Frame {frame_count}/{total_frames} | {avg_time_per_frame:.2f}s/frame | ETA: {eta_seconds:.1f}s")
-                
-                # Print to terminal
-                print(f"Frame {frame_count}/{total_frames} processed in {frame_time:.2f}s (avg: {avg_time_per_frame:.2f}s/frame)")
+            try:
+                while True:
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    
+                    frame_start = time.time()
+                    
+                    # Upscale frame
+                    output_frame, _ = self.upsampler.enhance(frame, outscale=scale)
+                    output_frame = np.ascontiguousarray(output_frame)
+                    
+                    if encoder is None:
+                        output_height, output_width = output_frame.shape[:2]
+                        ffmpeg_cmd = [
+                            self._get_ffmpeg_executable(), '-y',
+                            '-loglevel', 'error',
+                            '-f', 'rawvideo',
+                            '-vcodec', 'rawvideo',
+                            '-pix_fmt', 'bgr24',
+                            '-s', f'{output_width}x{output_height}',
+                            '-r', str(fps),
+                            '-i', '-',
+                        ]
+                        
+                        if has_audio:
+                            ffmpeg_cmd.extend([
+                                '-i', input_video,
+                                '-map', '0:v:0',
+                                '-map', '1:a:0?',
+                            ])
+                        else:
+                            ffmpeg_cmd.extend(['-map', '0:v:0'])
+                        
+                        video_encoder_args, encoder_name = self._get_video_encoder_args()
+                        ffmpeg_cmd.extend(video_encoder_args)
+                        
+                        if has_audio:
+                            ffmpeg_cmd.extend(['-c:a', 'copy', '-shortest'])
+                        
+                        ffmpeg_cmd.append(str(output_video_path))
+                        
+                        encoder = subprocess.Popen(
+                            ffmpeg_cmd,
+                            stdin=subprocess.PIPE,
+                            stderr=subprocess.PIPE
+                        )
+                    
+                    try:
+                        encoder.stdin.write(output_frame.tobytes())
+                    except BrokenPipeError as exc:
+                        stderr = encoder.stderr.read().decode('utf-8', errors='replace') if encoder.stderr else ''
+                        raise RuntimeError(f"ffmpeg stopped while encoding: {stderr}") from exc
+                    
+                    frame_end = time.time()
+                    frame_time = frame_end - frame_start
+                    total_processing_time += frame_time
+                    
+                    frame_count += 1
+                    avg_time_per_frame = total_processing_time / frame_count
+                    remaining_frames = max(0, total_frames - frame_count)
+                    eta_seconds = remaining_frames * avg_time_per_frame
+                    progress_total = max(total_frames, frame_count, 1)
+                    
+                    if frame_count == 1 or frame_count == total_frames or frame_count % progress_update_interval == 0:
+                        progress(0.15 + (0.8 * frame_count / progress_total), 
+                                desc=f"Frame {frame_count}/{total_frames} | {avg_time_per_frame:.2f}s/frame | ETA: {eta_seconds:.1f}s")
+                        print(f"Frame {frame_count}/{total_frames} processed in {frame_time:.2f}s (avg: {avg_time_per_frame:.2f}s/frame)")
+            except Exception:
+                if encoder is not None and encoder.poll() is None:
+                    try:
+                        if encoder.stdin and not encoder.stdin.closed:
+                            encoder.stdin.close()
+                    except Exception:
+                        pass
+                    encoder.kill()
+                    encoder.wait()
+                raise
+            finally:
+                cap.release()
             
-            cap.release()
+            if frame_count == 0:
+                return None, "✗ No frames found in video"
+            
+            if encoder is None or encoder.stdin is None:
+                return None, "✗ Could not start video encoder"
+            
+            progress(0.95, desc="Finalizing video...")
+            encoder.stdin.close()
+            stderr = encoder.stderr.read().decode('utf-8', errors='replace') if encoder.stderr else ''
+            return_code = encoder.wait()
+            
+            if return_code != 0:
+                return None, f"✗ ffmpeg encoding failed:\n{stderr[-2000:]}"
             
             total_time = time.time() - start_time
             print(f"\n✓ All frames processed in {total_time:.2f}s")
             print(f"  Average: {total_processing_time/frame_count:.2f}s/frame")
-            
-            progress(0.85, desc="Encoding video...")
-            
-            # Reconstruct video (always same filename to avoid duplicates)
-            temp_video_path = self.temp_manager.get_temp_file_path("upscaled_video_no_audio.mp4")
-            output_video_path = self.temp_manager.get_temp_file_path("upscaled_video.mp4")
-            
-            # Remove old files if exist
-            if temp_video_path.exists():
-                temp_video_path.unlink()
-            if output_video_path.exists():
-                output_video_path.unlink()
-            
-            # Encode video without audio first
-            (
-                ffmpeg
-                .input(str(output_frames_dir / "frame_%06d.png"), framerate=fps)
-                .output(str(temp_video_path), vcodec='libx264', pix_fmt='yuv420p', crf=18)
-                .overwrite_output()
-                .run(quiet=True, capture_stdout=True, capture_stderr=True)
-            )
-            
-            # Combine with audio if available
-            if has_audio and audio_path and audio_path.exists():
-                progress(0.95, desc="Adding audio...")
-                print("✓ Combining video with original audio...")
-                
-                video = ffmpeg.input(str(temp_video_path))
-                audio = ffmpeg.input(str(audio_path))
-                
-                (
-                    ffmpeg
-                    .output(video, audio, str(output_video_path), vcodec='copy', acodec='aac', strict='experimental')
-                    .overwrite_output()
-                    .run(quiet=True, capture_stdout=True, capture_stderr=True)
-                )
-                
-                # Clean up temp video
-                temp_video_path.unlink()
-                audio_path.unlink()
-                print("✓ Audio successfully added to upscaled video")
-            else:
-                # No audio, just rename temp video
-                temp_video_path.rename(output_video_path)
-            
-            # Clean up output frames after encoding
-            try:
-                shutil.rmtree(output_frames_dir)
-                print(f"✓ Cleaned up output frames directory")
-            except Exception as e:
-                print(f"Warning: Could not clean up output frames: {e}")
+            print(f"✓ Encoded video directly to {output_video_path}")
             
             progress(1.0, desc="Done!")
             
@@ -294,6 +370,7 @@ class UpscalerTab:
             info += f"Original size: {width}x{height}\n"
             info += f"Upscaled size: {output_width}x{output_height}\n"
             info += f"FPS: {fps}\n"
+            info += f"Encoder: {encoder_name}\n"
             info += f"Audio: {'✓ Preserved' if has_audio else '✗ No audio track'}\n"
             info += f"\n⏱️ Performance:\n"
             info += f"  Total time: {total_time:.2f}s\n"
